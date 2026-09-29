@@ -3,10 +3,15 @@ Configuration parameters for AI Virtual Hand Cursor.
 All dimensions, thresholds, and behavior settings can be tuned here.
 """
 import os
+import sys
 from pathlib import Path
 
-# Paths
-BASE_DIR = Path(__file__).resolve().parent.parent
+# Paths (Supports both direct python execution and PyInstaller bundled .exe)
+if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+    BASE_DIR = Path(sys._MEIPASS)
+else:
+    BASE_DIR = Path(__file__).resolve().parent.parent
+
 MODEL_PATH = str(BASE_DIR / "hand_landmarker.task")
 MODEL_URL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task"
 
