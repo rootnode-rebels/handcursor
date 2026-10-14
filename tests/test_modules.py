@@ -115,6 +115,54 @@ class TestVirtualCursor(unittest.TestCase):
         )
         self.assertEqual(action, GestureAction.RIGHT_CLICK)
 
+    def test_dual_hand_scroll(self):
+        """Verify 2 fingers up and moving vertically triggers scroll."""
+        right_hand = {
+            "label": "Right",
+            "landmarks": [(450, 400, 0)] + [(450, 300 - i*20, 0) for i in range(20)]
+        }
+        # Left hand with index (8) and middle (12) extended
+        left_lms = [(150, 400, 0)] + [(150, 300 - i*20, 0) for i in range(20)]
+        left_lms[4] = (200, 350, 0)  # Thumb folded
+        left_lms[8] = (140, 120, 0)  # Index tip up
+        left_lms[6] = (140, 200, 0)  # Index PIP
+        left_lms[12] = (160, 120, 0) # Middle tip up
+        left_lms[10] = (160, 200, 0) # Middle PIP
+        left_lms[16] = (180, 280, 0) # Ring tip down
+        left_lms[14] = (180, 250, 0) # Ring PIP
+        left_lms[20] = (200, 280, 0) # Pinky tip down
+        left_lms[18] = (200, 250, 0) # Pinky PIP
+
+        left_hand = {"label": "Left", "landmarks": left_lms}
+
+        # First frame registers initial scroll Y
+        self.classifier.classify_hands([left_hand, right_hand], self.detector)
+
+        # Move fingers down by 40 pixels -> SCROLL_DOWN
+        left_lms_down = list(left_lms)
+        left_lms_down[8] = (140, 165, 0)
+        left_lms_down[12] = (160, 165, 0)
+        _, action_down, _ = self.classifier.classify_hands(
+            [{"label": "Left", "landmarks": left_lms_down}, right_hand],
+            self.detector
+        )
+        self.assertEqual(action_down, GestureAction.SCROLL_DOWN)
+
+    def test_mouse_actions_execution(self):
+        """Verify MouseController executes left click, right click, and scroll without crash."""
+        pos, clicked = self.mouse.execute_action((300, 300), GestureAction.LEFT_CLICK)
+        self.assertTrue(self.mouse.is_left_clicked)
+
+        # Advance timer past cooldown and test right click
+        self.mouse.last_right_click = 0
+        pos, r_clicked = self.mouse.execute_action((300, 300), GestureAction.RIGHT_CLICK)
+        self.assertTrue(self.mouse.is_right_clicked)
+
+        # Test scroll
+        self.mouse.last_scroll = 0
+        pos, scrolled = self.mouse.execute_action((300, 300), GestureAction.SCROLL_UP)
+        self.assertTrue(scrolled)
+
     def tearDown(self):
         self.detector.close()
 
