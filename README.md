@@ -88,13 +88,16 @@ pip install -r requirements.txt
 python -m unittest discover tests
 ```
 
-### 4. Launch Desktop Application (Recommended)
+### 4. Standalone Windows Executable (.exe)
 
-Run the standalone Python desktop application:
-```bash
-python main.py
-```
-*(or `python app_desktop.py`)*
+You can run the app directly without Python installed:
+- **Single-File Executable**: [HandCursor_Standalone.exe](file:///d:/projects/hand%20cursor/HandCursor_Standalone.exe)
+  - Completely self-contained single `.exe` file.
+  - Can be shared directly via WhatsApp, Google Drive, or USB without any missing DLL errors.
+- **Or via Python**:
+  ```bash
+  python main.py
+  ```
 
 ### 🌟 Desktop App Features:
 - **Zero Browser Dependencies**: Runs as a native Windows desktop GUI application.
