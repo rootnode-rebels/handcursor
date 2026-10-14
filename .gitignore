@@ -29,6 +29,16 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Binaries & Large Archives
+*.exe
+*.zip
+dist/
+build/
+
+# PDFs & Report Generators (Saved for Google Drive)
+*.pdf
+generate_report_pdf.py
+
 # Environment & IDE
 .env
 .venv
