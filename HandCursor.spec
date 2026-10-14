@@ -1,23 +1,16 @@
 # -*- mode: python ; coding: utf-8 -*-
-from PyInstaller.utils.hooks import collect_data_files
-from PyInstaller.utils.hooks import collect_dynamic_libs
-
-datas = [('hand_landmarker.task', '.')]
-binaries = []
-datas += collect_data_files('mediapipe')
-binaries += collect_dynamic_libs('mediapipe')
 
 
 a = Analysis(
     ['main.py'],
     pathex=[],
-    binaries=binaries,
-    datas=datas,
+    binaries=[],
+    datas=[('hand_landmarker.task', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['PyQt5', 'torch', 'torchaudio', 'torchvision', 'scipy', 'pandas', 'matplotlib', 'sympy', 'IPython', 'jupyter'],
+    excludes=['PyQt5', 'torch', 'torchvision', 'torchaudio', 'scipy', 'pandas', 'matplotlib', 'IPython', 'jupyter'],
     noarchive=False,
     optimize=0,
 )

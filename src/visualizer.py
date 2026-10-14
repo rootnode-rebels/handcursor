@@ -5,7 +5,22 @@ active tracking boundaries, and gesture status feedback.
 from typing import Dict, List, Optional, Tuple
 import cv2
 import numpy as np
+
+# Ensure matplotlib import in MediaPipe's unused drawing_utils succeeds without bloat
+import sys
+import types
+class _DummyModule(types.ModuleType):
+    def __getattr__(self, name): return _DummyModule(name)
+    def __call__(self, *args, **kwargs): return _DummyModule("dummy")
+for _mod in ("matplotlib", "matplotlib.pyplot"):
+    if _mod not in sys.modules:
+        try:
+            __import__(_mod)
+        except ImportError:
+            sys.modules[_mod] = _DummyModule(_mod)
+
 from mediapipe.tasks.python.vision import HandLandmarksConnections
+
 
 from src.config import (
     FRAME_WIDTH,

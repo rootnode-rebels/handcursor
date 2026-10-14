@@ -9,9 +9,24 @@ import urllib.request
 from typing import List, Dict, Tuple, Optional
 import cv2
 import numpy as np
+
+# Ensure matplotlib import in MediaPipe's unused drawing_utils succeeds without bloat
+import sys
+import types
+class _DummyModule(types.ModuleType):
+    def __getattr__(self, name): return _DummyModule(name)
+    def __call__(self, *args, **kwargs): return _DummyModule("dummy")
+for _mod in ("matplotlib", "matplotlib.pyplot"):
+    if _mod not in sys.modules:
+        try:
+            __import__(_mod)
+        except ImportError:
+            sys.modules[_mod] = _DummyModule(_mod)
+
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
+
 
 from src.config import MODEL_PATH, MODEL_URL
 
