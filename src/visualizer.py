@@ -51,6 +51,7 @@ class Visualizer:
         ]
         self.margin_x = MARGIN_X
         self.margin_y = MARGIN_Y
+        self.control_mode = "relative"
 
     def draw_hud(
         self,
@@ -67,6 +68,7 @@ class Visualizer:
         h, w, _ = frame.shape
 
         # 1. Draw Active Interaction Bounding Box (Golden Zone)
+        label_text = "AIR MOUSE (TOUCHPAD) - ZERO JUMP ON ENTRY" if self.control_mode == "relative" else "ACTIVE TRACKING AREA"
         cv2.rectangle(
             frame,
             (self.margin_x, self.margin_y),
@@ -76,10 +78,10 @@ class Visualizer:
         )
         cv2.putText(
             frame,
-            "ACTIVE TRACKING AREA",
+            label_text,
             (self.margin_x + 5, max(15, self.margin_y - 8)),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.45,
+            0.42,
             COLOR_BOUNDING_BOX,
             1,
             cv2.LINE_AA

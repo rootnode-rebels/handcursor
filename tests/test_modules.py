@@ -163,8 +163,28 @@ class TestVirtualCursor(unittest.TestCase):
         pos, scrolled = self.mouse.execute_action((300, 300), GestureAction.SCROLL_UP)
         self.assertTrue(scrolled)
 
+    def test_relative_tracking_zero_jump(self):
+        """Verify that showing hand in relative mode anchors without jumping cursor."""
+        self.mouse.control_mode = "relative"
+        self.mouse.prev_hand_x = None
+        self.mouse.prev_hand_y = None
+
+        orig_x, orig_y = self.mouse.get_cursor_pos()
+        self.mouse.prev_x = orig_x
+        self.mouse.prev_y = orig_y
+
+        # When hand first appears at (400, 300), cursor stays at original position
+        target_pos, _ = self.mouse.execute_action((400, 300), GestureAction.MOVE)
+        self.assertEqual(target_pos[0], orig_x)
+        self.assertEqual(target_pos[1], orig_y)
+
+        # When hand moves +20px right, cursor moves right relative to original position
+        target_pos2, _ = self.mouse.execute_action((420, 300), GestureAction.MOVE)
+        self.assertGreater(target_pos2[0], orig_x)
+
     def tearDown(self):
         self.detector.close()
+
 
 
 if __name__ == "__main__":

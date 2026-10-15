@@ -25,10 +25,12 @@ from src.config import (
     MARGIN_Y,
     SMOOTHING_FACTOR,
     DEADZONE_RADIUS,
-    CLICK_FREEZE_TIME
+    CLICK_FREEZE_TIME,
+    CONTROL_MODE,
+    MOUSE_SENSITIVITY
 )
 from src.hand_detector import HandDetector
-from src.gesture_classifier import GestureClassifier, GestureAction
+from src.gesture_classifier import GestureAction, GestureClassifier
 from src.mouse_controller import MouseController
 from src.visualizer import Visualizer
 
@@ -63,15 +65,27 @@ class DesktopTrackingWorker(QThread):
             self.cap = None
         self.wait()
 
-    def update_settings(self, smoothing: int, deadzone: int, click_freeze: float, show_skeleton: bool, margin: int = MARGIN_X):
+    def update_settings(
+        self,
+        smoothing: int,
+        deadzone: int,
+        click_freeze: float,
+        show_skeleton: bool,
+        margin: int = MARGIN_X,
+        control_mode: str = CONTROL_MODE,
+        sensitivity: float = MOUSE_SENSITIVITY
+    ):
         """Updates tracking parameters in real time."""
         self.mouse.smoothing_factor = smoothing
         self.mouse.deadzone_radius = deadzone
         self.mouse.click_freeze_time = click_freeze
         self.mouse.margin_x = margin
         self.mouse.margin_y = max(10, int(margin * 0.8))
+        self.mouse.control_mode = control_mode
+        self.mouse.sensitivity = sensitivity
         self.visualizer.margin_x = margin
         self.visualizer.margin_y = max(10, int(margin * 0.8))
+        self.visualizer.control_mode = control_mode
         self.show_skeleton = show_skeleton
 
     def run(self):
@@ -410,7 +424,43 @@ class DesktopAppWindow(QtWidgets.QMainWindow):
         settings_layout.setContentsMargins(10, 10, 10, 10)
         settings_layout.setSpacing(12)
 
-        # 1. Smoothing Slider
+        # 0. Navigation Control Mode Selector
+        lbl_mode_title = QtWidgets.QLabel("Cursor Control Mode:")
+        lbl_mode_title.setStyleSheet("font-size: 11px; font-weight: bold; color: #38bdf8;")
+        self.combo_mode = QtWidgets.QComboBox()
+        self.combo_mode.addItem("Air Mouse (Relative) - Zero Jumps, Full Screen Reach", "relative")
+        self.combo_mode.addItem("Absolute (Screen Mapping) - Direct Camera-to-Screen Mapping", "absolute")
+        self.combo_mode.setStyleSheet("""
+            QComboBox {
+                background-color: #1e293b;
+                color: #f8fafc;
+                border: 1px solid #334155;
+                border-radius: 6px;
+                padding: 5px 8px;
+                font-size: 11px;
+                font-weight: 600;
+            }
+            QComboBox QAbstractItemView {
+                background-color: #0f172a;
+                color: #f8fafc;
+                selection-background-color: #0284c7;
+            }
+        """)
+        self.combo_mode.currentIndexChanged.connect(self.on_settings_changed)
+        settings_layout.addWidget(lbl_mode_title)
+        settings_layout.addWidget(self.combo_mode)
+
+        # 1. Mouse Sensitivity / Speed (Air Mouse Mode)
+        self.lbl_sens = QtWidgets.QLabel(f"Air Mouse Sensitivity: {MOUSE_SENSITIVITY}x (Full Screen Reach)")
+        self.lbl_sens.setStyleSheet("font-size: 11px; font-weight: 600;")
+        self.slider_sens = QtWidgets.QSlider(Qt.Orientation.Horizontal)
+        self.slider_sens.setRange(10, 45)
+        self.slider_sens.setValue(int(MOUSE_SENSITIVITY * 10))
+        self.slider_sens.valueChanged.connect(self.on_settings_changed)
+        settings_layout.addWidget(self.lbl_sens)
+        settings_layout.addWidget(self.slider_sens)
+
+        # 2. Smoothing Slider
         self.lbl_smooth = QtWidgets.QLabel(f"Cursor Smoothing: {SMOOTHING_FACTOR} (Balanced)")
         self.lbl_smooth.setStyleSheet("font-size: 11px; font-weight: 600;")
         self.slider_smooth = QtWidgets.QSlider(Qt.Orientation.Horizontal)
@@ -420,7 +470,7 @@ class DesktopAppWindow(QtWidgets.QMainWindow):
         settings_layout.addWidget(self.lbl_smooth)
         settings_layout.addWidget(self.slider_smooth)
 
-        # 2. Deadzone Filter Slider
+        # 3. Deadzone Filter Slider
         self.lbl_deadzone = QtWidgets.QLabel(f"Tremor Deadzone: {DEADZONE_RADIUS}px")
         self.lbl_deadzone.setStyleSheet("font-size: 11px; font-weight: 600;")
         self.slider_deadzone = QtWidgets.QSlider(Qt.Orientation.Horizontal)
@@ -430,7 +480,7 @@ class DesktopAppWindow(QtWidgets.QMainWindow):
         settings_layout.addWidget(self.lbl_deadzone)
         settings_layout.addWidget(self.slider_deadzone)
 
-        # 3. Click Freeze Duration Slider
+        # 4. Click Freeze Duration Slider
         self.lbl_freeze = QtWidgets.QLabel(f"Click-Lock Freeze: {CLICK_FREEZE_TIME}s")
         self.lbl_freeze.setStyleSheet("font-size: 11px; font-weight: 600;")
         self.slider_freeze = QtWidgets.QSlider(Qt.Orientation.Horizontal)
@@ -440,7 +490,7 @@ class DesktopAppWindow(QtWidgets.QMainWindow):
         settings_layout.addWidget(self.lbl_freeze)
         settings_layout.addWidget(self.slider_freeze)
 
-        # 4. Active Control Frame Size Slider (smaller margin = larger control area)
+        # 5. Active Control Frame Size Slider (smaller margin = larger control area)
         self.lbl_margin = QtWidgets.QLabel(f"Active Frame Size: {FRAME_WIDTH - 2*MARGIN_X}×{FRAME_HEIGHT - 2*MARGIN_Y} px (Margin: {MARGIN_X}px)")
         self.lbl_margin.setStyleSheet("font-size: 11px; font-weight: 600;")
         self.slider_margin = QtWidgets.QSlider(Qt.Orientation.Horizontal)
@@ -450,7 +500,7 @@ class DesktopAppWindow(QtWidgets.QMainWindow):
         settings_layout.addWidget(self.lbl_margin)
         settings_layout.addWidget(self.slider_margin)
 
-        # 5. Show Skeleton Toggle
+        # 6. Show Skeleton Toggle
         self.chk_skeleton = QtWidgets.QCheckBox("Render Hand Skeletons & Boundaries")
         self.chk_skeleton.setChecked(True)
         self.chk_skeleton.setStyleSheet("font-size: 11px; color: #cbd5e1; font-weight: 600;")
@@ -480,6 +530,8 @@ class DesktopAppWindow(QtWidgets.QMainWindow):
 
     def on_settings_changed(self):
         """Dispatches live slider adjustments directly to worker."""
+        mode = self.combo_mode.currentData() or "relative"
+        sens = self.slider_sens.value() / 10.0
         smooth = self.slider_smooth.value()
         deadzone = self.slider_deadzone.value()
         freeze = self.slider_freeze.value() / 100.0
@@ -491,12 +543,21 @@ class DesktopAppWindow(QtWidgets.QMainWindow):
         active_h = FRAME_HEIGHT - 2 * margin_y
 
         # Update labels
+        self.lbl_sens.setText(f"Air Mouse Sensitivity: {sens:.1f}x ({'Slow' if sens < 1.6 else 'Fast' if sens > 2.8 else 'Balanced'})")
         self.lbl_smooth.setText(f"Cursor Smoothing: {smooth} ({'Fast' if smooth < 3 else 'Smooth' if smooth > 5 else 'Balanced'})")
         self.lbl_deadzone.setText(f"Tremor Deadzone: {deadzone}px")
         self.lbl_freeze.setText(f"Click-Lock Freeze: {freeze:.2f}s")
         self.lbl_margin.setText(f"Active Frame Size: {active_w}×{active_h} px (Margin: {margin}px)")
 
-        self.worker.update_settings(smooth, deadzone, freeze, show_skel, margin)
+        self.worker.update_settings(
+            smooth,
+            deadzone,
+            freeze,
+            show_skel,
+            margin=margin,
+            control_mode=mode,
+            sensitivity=sens
+        )
 
     def toggle_pin(self):
         """Toggles always-on-top window property."""

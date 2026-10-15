@@ -14,6 +14,7 @@ import numpy as np
 IS_WINDOWS = sys.platform == "win32"
 if IS_WINDOWS:
     import ctypes
+    from ctypes import wintypes
     try:
         ctypes.windll.shcore.SetProcessDpiAwareness(2)
     except Exception:
@@ -22,8 +23,12 @@ if IS_WINDOWS:
         except Exception:
             pass
     user32 = ctypes.windll.user32
+
+    class POINT(ctypes.Structure):
+        _fields_ = [("x", ctypes.c_long), ("y", ctypes.c_long)]
 else:
     user32 = None
+    POINT = None
 
 import pyautogui
 
@@ -37,7 +42,9 @@ from src.config import (
     CLICK_FREEZE_TIME,
     CLICK_COOLDOWN,
     RIGHT_CLICK_COOLDOWN,
-    SCROLL_COOLDOWN
+    SCROLL_COOLDOWN,
+    CONTROL_MODE,
+    MOUSE_SENSITIVITY
 )
 from src.gesture_classifier import GestureAction
 
@@ -63,6 +70,8 @@ class MouseController:
             self.screen_width, self.screen_height = pyautogui.size()
 
         # Configurable parameters (can be adjusted live via GUI sliders)
+        self.control_mode = CONTROL_MODE  # "relative" (Air Mouse) or "absolute"
+        self.sensitivity = float(MOUSE_SENSITIVITY)
         self.smoothing_factor = SMOOTHING_FACTOR
         self.deadzone_radius = DEADZONE_RADIUS
         self.click_freeze_time = CLICK_FREEZE_TIME
@@ -81,9 +90,23 @@ class MouseController:
         self.margin_x = MARGIN_X
         self.margin_y = MARGIN_Y
 
+        # Relative tracking state (stores previous hand camera coordinate)
+        self.prev_hand_x: Optional[int] = None
+        self.prev_hand_y: Optional[int] = None
+
         # Click state indicator
         self.is_left_clicked = False
         self.is_right_clicked = False
+
+    def get_cursor_pos(self) -> Tuple[int, int]:
+        """Gets current physical cursor position on the screen."""
+        if IS_WINDOWS and user32 and POINT:
+            pt = POINT()
+            user32.GetCursorPos(ctypes.byref(pt))
+            return int(pt.x), int(pt.y)
+        pos = pyautogui.position()
+        return int(pos[0]), int(pos[1])
+
 
     def map_coordinates(self, camera_x: int, camera_y: int) -> Tuple[int, int]:
         """
@@ -165,6 +188,8 @@ class MouseController:
     ) -> Tuple[Optional[Tuple[int, int]], bool]:
         """
         Executes OS mouse action according to gesture.
+        In Relative Mode: Anchors to current physical cursor position on hand entry (NO JUMP),
+        and applies dynamic speed curve to reach all screen corners effortlessly.
         Locks cursor position during and immediately after a click to eliminate click jitter.
         """
         current_time = time.time()
@@ -173,22 +198,77 @@ class MouseController:
         target_screen_pos = None
 
         is_clicking_gesture = action in (GestureAction.LEFT_CLICK, GestureAction.RIGHT_CLICK)
-        is_in_click_freeze = (current_time - self.last_click_event_time) < CLICK_FREEZE_TIME
+        is_in_click_freeze = (current_time - self.last_click_event_time) < self.click_freeze_time
 
-        # 1. Update cursor position (FREEZE if currently clicking or just clicked)
-        if cursor_pos is not None:
-            if is_clicking_gesture or is_in_click_freeze:
-                # FREEZE position at target button! Do not move cursor during click!
+        # 1. Update cursor position
+        if cursor_pos is None:
+            # Hand is NOT visible: reset relative tracking anchor so it doesn't jump when re-entering
+            self.prev_hand_x = None
+            self.prev_hand_y = None
+            if is_in_click_freeze:
                 target_screen_pos = (self.prev_x, self.prev_y)
+        else:
+            if is_clicking_gesture or is_in_click_freeze:
+                # FREEZE position at target button during click!
+                target_screen_pos = (self.prev_x, self.prev_y)
+                # Keep hand coordinate anchor updated so releasing freeze does not cause sudden jump
+                self.prev_hand_x = cursor_pos[0]
+                self.prev_hand_y = cursor_pos[1]
+            elif self.control_mode == "relative":
+                # RELATIVE / TOUCHPAD / AIR-MOUSE MODE
+                # If hand JUST appeared, keep cursor in current position (NO JUMP!)
+                if self.prev_hand_x is None or self.prev_hand_y is None:
+                    cur_x, cur_y = self.get_cursor_pos()
+                    self.prev_x = cur_x
+                    self.prev_y = cur_y
+                    self.prev_hand_x = cursor_pos[0]
+                    self.prev_hand_y = cursor_pos[1]
+                    target_screen_pos = (cur_x, cur_y)
+                else:
+                    # Hand delta in camera coordinates
+                    dx = cursor_pos[0] - self.prev_hand_x
+                    dy = cursor_pos[1] - self.prev_hand_y
+                    self.prev_hand_x = cursor_pos[0]
+                    self.prev_hand_y = cursor_pos[1]
+
+                    # Filter out sub-pixel sensor noise
+                    dist_hand = math.hypot(dx, dy)
+                    if dist_hand < 1.0:
+                        dx, dy = 0.0, 0.0
+
+                    # Dynamic speed curve: gentle hand movement gives fine precision,
+                    # faster hand flick gives quick screen-spanning traversal to reach any corner
+                    speed_boost = 1.0 + min(1.8, dist_hand / 25.0)
+                    target_x = self.prev_x + dx * self.sensitivity * speed_boost
+                    target_y = self.prev_y + dy * self.sensitivity * speed_boost
+
+                    # Clamp strictly to screen dimensions
+                    target_x = max(0, min(self.screen_width - 1, target_x))
+                    target_y = max(0, min(self.screen_height - 1, target_y))
+
+                    # Tremor deadzone & smoothing
+                    delta_dist = math.hypot(target_x - self.prev_x, target_y - self.prev_y)
+                    if delta_dist < self.deadzone_radius:
+                        smooth_x, smooth_y = self.prev_x, self.prev_y
+                    else:
+                        adaptive_factor = max(1.2, float(self.smoothing_factor) * (0.6 if delta_dist > 35 else 1.0))
+                        smooth_x = int(self.prev_x + (target_x - self.prev_x) / adaptive_factor)
+                        smooth_y = int(self.prev_y + (target_y - self.prev_y) / adaptive_factor)
+
+                    self.prev_x, self.prev_y = smooth_x, smooth_y
+                    target_screen_pos = (smooth_x, smooth_y)
+                    try:
+                        self.set_cursor_pos(smooth_x, smooth_y)
+                    except Exception:
+                        pass
             else:
+                # ABSOLUTE MODE (Direct camera-to-screen mapping)
                 smooth_x, smooth_y = self.map_coordinates(cursor_pos[0], cursor_pos[1])
                 target_screen_pos = (smooth_x, smooth_y)
                 try:
                     self.set_cursor_pos(smooth_x, smooth_y)
                 except Exception:
                     pass
-        elif is_in_click_freeze:
-            target_screen_pos = (self.prev_x, self.prev_y)
 
         # 2. Execute discrete gesture actions
         if action == GestureAction.LEFT_CLICK:

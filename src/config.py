@@ -35,6 +35,12 @@ SMOOTHING_FACTOR = 4
 DEADZONE_RADIUS = 8            # Pixels of involuntary hand jitter to ignore when hovering
 CLICK_FREEZE_TIME = 0.35       # Seconds to lock/freeze cursor position during and immediately after a click
 
+# Navigation Mode:
+# 'relative' (Air Mouse / Touchpad): Keeps cursor in original position when hand appears, moves relative to it, reaches all corners easily.
+# 'absolute': Maps camera frame coordinates directly to screen pixels.
+CONTROL_MODE = "relative"
+MOUSE_SENSITIVITY = 2.2        # Movement multiplier for relative mode
+
 # Gesture Thresholds (in pixels for 640x480 frame)
 PINCH_THRESHOLD_CLICK = 38     # Thumb tip to Index tip distance to trigger Left Click
 PINCH_THRESHOLD_RIGHT = 38     # Thumb tip to Middle tip distance to trigger Right Click
