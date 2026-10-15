@@ -77,6 +77,10 @@ class MouseController:
         self.last_scroll = 0.0
         self.last_click_event_time = 0.0
 
+        # Dynamic active area margins (smaller margin = larger control frame area)
+        self.margin_x = MARGIN_X
+        self.margin_y = MARGIN_Y
+
         # Click state indicator
         self.is_left_clicked = False
         self.is_right_clicked = False
@@ -91,12 +95,12 @@ class MouseController:
         # 1. Project within active camera margins
         screen_x = np.interp(
             camera_x,
-            [MARGIN_X, FRAME_WIDTH - MARGIN_X],
+            [self.margin_x, FRAME_WIDTH - self.margin_x],
             [0, self.screen_width]
         )
         screen_y = np.interp(
             camera_y,
-            [MARGIN_Y, FRAME_HEIGHT - MARGIN_Y],
+            [self.margin_y, FRAME_HEIGHT - self.margin_y],
             [0, self.screen_height]
         )
 

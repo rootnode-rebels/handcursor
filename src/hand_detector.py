@@ -10,18 +10,22 @@ from typing import List, Dict, Tuple, Optional
 import cv2
 import numpy as np
 
-# Ensure matplotlib import in MediaPipe's unused drawing_utils succeeds without bloat
+# Provide lightweight stubs for matplotlib if missing (MediaPipe drawing_utils imports it unconditionally)
 import sys
 import types
-class _DummyModule(types.ModuleType):
-    def __getattr__(self, name): return _DummyModule(name)
-    def __call__(self, *args, **kwargs): return _DummyModule("dummy")
-for _mod in ("matplotlib", "matplotlib.pyplot"):
-    if _mod not in sys.modules:
-        try:
-            __import__(_mod)
-        except ImportError:
-            sys.modules[_mod] = _DummyModule(_mod)
+if "matplotlib" not in sys.modules:
+    try:
+        import matplotlib
+        import matplotlib.pyplot
+    except ImportError:
+        class _PyplotStub(types.ModuleType):
+            def __getattr__(self, name): return lambda *a, **kw: None
+        _mat = types.ModuleType("matplotlib")
+        _mat.__path__ = []
+        _plt = _PyplotStub("matplotlib.pyplot")
+        sys.modules["matplotlib"] = _mat
+        sys.modules["matplotlib.pyplot"] = _plt
+
 
 import mediapipe as mp
 from mediapipe.tasks import python

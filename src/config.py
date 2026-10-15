@@ -24,9 +24,10 @@ FRAME_HEIGHT = 480
 TARGET_FPS = 30
 
 # Screen Mapping & Bounding Box (Active Area)
-# Margins from camera frame edges to make reaching screen borders comfortable
-MARGIN_X = 100
-MARGIN_Y = 80
+# Margins from camera frame edges (smaller margin = larger control frame area)
+MARGIN_X = 50
+MARGIN_Y = 40
+
 
 # Cursor Movement & Stabilization
 # Higher smoothing = smoother cursor; lower = more responsive

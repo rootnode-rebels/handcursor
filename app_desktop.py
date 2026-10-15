@@ -21,6 +21,8 @@ from src.config import (
     CAMERA_BACKEND,
     FRAME_WIDTH,
     FRAME_HEIGHT,
+    MARGIN_X,
+    MARGIN_Y,
     SMOOTHING_FACTOR,
     DEADZONE_RADIUS,
     CLICK_FREEZE_TIME
@@ -45,6 +47,7 @@ class DesktopTrackingWorker(QThread):
 
         # Controller instances
         self.mouse = MouseController()
+        self.visualizer = Visualizer()
 
     def start_camera(self):
         """Starts webcam on user command."""
@@ -60,11 +63,15 @@ class DesktopTrackingWorker(QThread):
             self.cap = None
         self.wait()
 
-    def update_settings(self, smoothing: int, deadzone: int, click_freeze: float, show_skeleton: bool):
+    def update_settings(self, smoothing: int, deadzone: int, click_freeze: float, show_skeleton: bool, margin: int = MARGIN_X):
         """Updates tracking parameters in real time."""
         self.mouse.smoothing_factor = smoothing
         self.mouse.deadzone_radius = deadzone
         self.mouse.click_freeze_time = click_freeze
+        self.mouse.margin_x = margin
+        self.mouse.margin_y = max(10, int(margin * 0.8))
+        self.visualizer.margin_x = margin
+        self.visualizer.margin_y = max(10, int(margin * 0.8))
         self.show_skeleton = show_skeleton
 
     def run(self):
@@ -80,7 +87,7 @@ class DesktopTrackingWorker(QThread):
 
         detector = HandDetector(max_hands=2)
         classifier = GestureClassifier()
-        visualizer = Visualizer()
+        visualizer = self.visualizer
 
         prev_time = time.time()
         fps = 0.0
@@ -172,8 +179,8 @@ class DesktopAppWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("AI Virtual Hand Cursor")
-        self.resize(380, 640)
-        self.setMinimumSize(340, 520)
+        self.resize(440, 710)
+        self.setMinimumSize(380, 580)
 
         # Window state
         self.is_pinned = True
@@ -191,7 +198,7 @@ class DesktopAppWindow(QtWidgets.QMainWindow):
 
         # Position window at bottom-right of screen
         screen = QtWidgets.QApplication.primaryScreen().geometry()
-        self.move(screen.width() - 410, screen.height() - 700)
+        self.move(screen.width() - 470, screen.height() - 770)
 
     def update_window_flags(self):
         """Toggles between always-on-top floating mode and standard window."""
@@ -297,7 +304,7 @@ class DesktopAppWindow(QtWidgets.QMainWindow):
 
         # Camera Preview Box
         self.video_box = QtWidgets.QLabel()
-        self.video_box.setFixedHeight(210)
+        self.video_box.setFixedHeight(270)
         self.video_box.setStyleSheet("background-color: #020617; border-radius: 10px; border: 1px solid #1e293b; color: #64748b; font-size: 12px;")
         self.video_box.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.video_box.setText("Camera is currently OFF\nClick 'Enable Camera' below to start")
@@ -433,7 +440,17 @@ class DesktopAppWindow(QtWidgets.QMainWindow):
         settings_layout.addWidget(self.lbl_freeze)
         settings_layout.addWidget(self.slider_freeze)
 
-        # 4. Show Skeleton Toggle
+        # 4. Active Control Frame Size Slider (smaller margin = larger control area)
+        self.lbl_margin = QtWidgets.QLabel(f"Active Frame Size: {FRAME_WIDTH - 2*MARGIN_X}×{FRAME_HEIGHT - 2*MARGIN_Y} px (Margin: {MARGIN_X}px)")
+        self.lbl_margin.setStyleSheet("font-size: 11px; font-weight: 600;")
+        self.slider_margin = QtWidgets.QSlider(Qt.Orientation.Horizontal)
+        self.slider_margin.setRange(15, 90)
+        self.slider_margin.setValue(MARGIN_X)
+        self.slider_margin.valueChanged.connect(self.on_settings_changed)
+        settings_layout.addWidget(self.lbl_margin)
+        settings_layout.addWidget(self.slider_margin)
+
+        # 5. Show Skeleton Toggle
         self.chk_skeleton = QtWidgets.QCheckBox("Render Hand Skeletons & Boundaries")
         self.chk_skeleton.setChecked(True)
         self.chk_skeleton.setStyleSheet("font-size: 11px; color: #cbd5e1; font-weight: 600;")
@@ -466,14 +483,20 @@ class DesktopAppWindow(QtWidgets.QMainWindow):
         smooth = self.slider_smooth.value()
         deadzone = self.slider_deadzone.value()
         freeze = self.slider_freeze.value() / 100.0
+        margin = self.slider_margin.value()
         show_skel = self.chk_skeleton.isChecked()
+
+        margin_y = max(10, int(margin * 0.8))
+        active_w = FRAME_WIDTH - 2 * margin
+        active_h = FRAME_HEIGHT - 2 * margin_y
 
         # Update labels
         self.lbl_smooth.setText(f"Cursor Smoothing: {smooth} ({'Fast' if smooth < 3 else 'Smooth' if smooth > 5 else 'Balanced'})")
         self.lbl_deadzone.setText(f"Tremor Deadzone: {deadzone}px")
         self.lbl_freeze.setText(f"Click-Lock Freeze: {freeze:.2f}s")
+        self.lbl_margin.setText(f"Active Frame Size: {active_w}×{active_h} px (Margin: {margin}px)")
 
-        self.worker.update_settings(smooth, deadzone, freeze, show_skel)
+        self.worker.update_settings(smooth, deadzone, freeze, show_skel, margin)
 
     def toggle_pin(self):
         """Toggles always-on-top window property."""
@@ -498,7 +521,7 @@ class DesktopAppWindow(QtWidgets.QMainWindow):
         else:
             self.tabs.show()
             self.compact_btn.setText("—")
-            self.resize(380, 640)
+            self.resize(440, 710)
 
     def toggle_camera(self):
         """Starts or stops webcam on user explicit request."""

@@ -6,18 +6,22 @@ from typing import Dict, List, Optional, Tuple
 import cv2
 import numpy as np
 
-# Ensure matplotlib import in MediaPipe's unused drawing_utils succeeds without bloat
+# Provide lightweight stubs for matplotlib if missing (MediaPipe drawing_utils imports it unconditionally)
 import sys
 import types
-class _DummyModule(types.ModuleType):
-    def __getattr__(self, name): return _DummyModule(name)
-    def __call__(self, *args, **kwargs): return _DummyModule("dummy")
-for _mod in ("matplotlib", "matplotlib.pyplot"):
-    if _mod not in sys.modules:
-        try:
-            __import__(_mod)
-        except ImportError:
-            sys.modules[_mod] = _DummyModule(_mod)
+if "matplotlib" not in sys.modules:
+    try:
+        import matplotlib
+        import matplotlib.pyplot
+    except ImportError:
+        class _PyplotStub(types.ModuleType):
+            def __getattr__(self, name): return lambda *a, **kw: None
+        _mat = types.ModuleType("matplotlib")
+        _mat.__path__ = []
+        _plt = _PyplotStub("matplotlib.pyplot")
+        sys.modules["matplotlib"] = _mat
+        sys.modules["matplotlib.pyplot"] = _plt
+
 
 from mediapipe.tasks.python.vision import HandLandmarksConnections
 
@@ -45,6 +49,8 @@ class Visualizer:
         self.connections = [
             (c.start, c.end) for c in HandLandmarksConnections.HAND_CONNECTIONS
         ]
+        self.margin_x = MARGIN_X
+        self.margin_y = MARGIN_Y
 
     def draw_hud(
         self,
@@ -63,15 +69,15 @@ class Visualizer:
         # 1. Draw Active Interaction Bounding Box (Golden Zone)
         cv2.rectangle(
             frame,
-            (MARGIN_X, MARGIN_Y),
-            (w - MARGIN_X, h - MARGIN_Y),
+            (self.margin_x, self.margin_y),
+            (w - self.margin_x, h - self.margin_y),
             COLOR_BOUNDING_BOX,
             2
         )
         cv2.putText(
             frame,
             "ACTIVE TRACKING AREA",
-            (MARGIN_X + 5, MARGIN_Y - 8),
+            (self.margin_x + 5, max(15, self.margin_y - 8)),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.45,
             COLOR_BOUNDING_BOX,
