@@ -8,6 +8,7 @@ from typing import Dict, List, Optional, Tuple
 from src.config import (
     PINCH_THRESHOLD_CLICK,
     PINCH_THRESHOLD_RIGHT,
+    PINCH_THRESHOLD_RELEASE,
     SCROLL_THRESHOLD,
     PRIMARY_CURSOR_HAND,
     PRIMARY_ACTION_HAND
@@ -31,6 +32,9 @@ class GestureClassifier:
 
     def __init__(self):
         self.last_scroll_y: Optional[int] = None
+        self.is_left_pinched: bool = False
+        self.is_right_pinched: bool = False
+
 
     def classify_hands(
         self,
@@ -47,6 +51,8 @@ class GestureClassifier:
         """
         if not hands:
             self.last_scroll_y = None
+            self.is_left_pinched = False
+            self.is_right_pinched = False
             return None, GestureAction.IDLE, {"mode": "No Hands Detected"}
 
         # ---------------------------------------------------------------------
@@ -83,28 +89,41 @@ class GestureClassifier:
                 (action_lms[12][0], action_lms[12][1])
             )
 
-            # Check action gestures on left hand
+            # Check action gestures on left hand with hysteresis
             action = GestureAction.MOVE
 
-            if d_thumb_index < PINCH_THRESHOLD_CLICK:
-                action = GestureAction.LEFT_CLICK
-            elif d_thumb_middle < PINCH_THRESHOLD_RIGHT:
-                action = GestureAction.RIGHT_CLICK
-            elif action_fingers[1] and action_fingers[2] and not action_fingers[3]:
-                # Two fingers raised on action hand -> Scroll Mode
-                curr_y = (action_lms[8][1] + action_lms[12][1]) // 2
-                if self.last_scroll_y is not None:
-                    delta_y = curr_y - self.last_scroll_y
-                    if delta_y < -SCROLL_THRESHOLD:
-                        action = GestureAction.SCROLL_UP
-                        self.last_scroll_y = curr_y
-                    elif delta_y > SCROLL_THRESHOLD:
-                        action = GestureAction.SCROLL_DOWN
+            if self.is_left_pinched:
+                if d_thumb_index > PINCH_THRESHOLD_RELEASE:
+                    self.is_left_pinched = False
+                else:
+                    action = GestureAction.LEFT_CLICK
+            elif self.is_right_pinched:
+                if d_thumb_middle > PINCH_THRESHOLD_RELEASE:
+                    self.is_right_pinched = False
+                else:
+                    action = GestureAction.RIGHT_CLICK
+            else:
+                if d_thumb_index < PINCH_THRESHOLD_CLICK:
+                    self.is_left_pinched = True
+                    action = GestureAction.LEFT_CLICK
+                elif d_thumb_middle < PINCH_THRESHOLD_RIGHT:
+                    self.is_right_pinched = True
+                    action = GestureAction.RIGHT_CLICK
+                elif action_fingers[1] and action_fingers[2] and not action_fingers[3]:
+                    # Two fingers raised on action hand -> Scroll Mode
+                    curr_y = (action_lms[8][1] + action_lms[12][1]) // 2
+                    if self.last_scroll_y is not None:
+                        delta_y = curr_y - self.last_scroll_y
+                        if delta_y < -SCROLL_THRESHOLD:
+                            action = GestureAction.SCROLL_UP
+                            self.last_scroll_y = curr_y
+                        elif delta_y > SCROLL_THRESHOLD:
+                            action = GestureAction.SCROLL_DOWN
+                            self.last_scroll_y = curr_y
+                    else:
                         self.last_scroll_y = curr_y
                 else:
-                    self.last_scroll_y = curr_y
-            else:
-                self.last_scroll_y = None
+                    self.last_scroll_y = None
 
             debug_info = {
                 "mode": "Dual-Hand (R: Move | L: Action)",
@@ -130,34 +149,43 @@ class GestureClassifier:
 
         action = GestureAction.IDLE
 
-        # Only Index finger up -> Move
-        if fingers[1] and not fingers[2] and not fingers[3] and not fingers[4]:
-            action = GestureAction.MOVE
-            self.last_scroll_y = None
-
-        # Index + Thumb pinch -> Left Click
-        if d_thumb_index < PINCH_THRESHOLD_CLICK:
-            action = GestureAction.LEFT_CLICK
-
-        # Middle + Thumb pinch -> Right Click
-        elif d_thumb_middle < PINCH_THRESHOLD_RIGHT:
-            action = GestureAction.RIGHT_CLICK
-
-        # Index and Middle up together -> Scroll
-        elif fingers[1] and fingers[2] and not fingers[3]:
-            curr_y = (lms[8][1] + lms[12][1]) // 2
-            if self.last_scroll_y is not None:
-                delta_y = curr_y - self.last_scroll_y
-                if delta_y < -SCROLL_THRESHOLD:
-                    action = GestureAction.SCROLL_UP
-                    self.last_scroll_y = curr_y
-                elif delta_y > SCROLL_THRESHOLD:
-                    action = GestureAction.SCROLL_DOWN
+        # Single-hand pinch with hysteresis
+        if self.is_left_pinched:
+            if d_thumb_index > PINCH_THRESHOLD_RELEASE:
+                self.is_left_pinched = False
+                action = GestureAction.MOVE if fingers[1] else GestureAction.IDLE
+            else:
+                action = GestureAction.LEFT_CLICK
+        elif self.is_right_pinched:
+            if d_thumb_middle > PINCH_THRESHOLD_RELEASE:
+                self.is_right_pinched = False
+                action = GestureAction.MOVE if fingers[1] else GestureAction.IDLE
+            else:
+                action = GestureAction.RIGHT_CLICK
+        else:
+            if d_thumb_index < PINCH_THRESHOLD_CLICK:
+                self.is_left_pinched = True
+                action = GestureAction.LEFT_CLICK
+            elif d_thumb_middle < PINCH_THRESHOLD_RIGHT:
+                self.is_right_pinched = True
+                action = GestureAction.RIGHT_CLICK
+            elif fingers[1] and not fingers[2] and not fingers[3] and not fingers[4]:
+                action = GestureAction.MOVE
+                self.last_scroll_y = None
+            elif fingers[1] and fingers[2] and not fingers[3]:
+                curr_y = (lms[8][1] + lms[12][1]) // 2
+                if self.last_scroll_y is not None:
+                    delta_y = curr_y - self.last_scroll_y
+                    if delta_y < -SCROLL_THRESHOLD:
+                        action = GestureAction.SCROLL_UP
+                        self.last_scroll_y = curr_y
+                    elif delta_y > SCROLL_THRESHOLD:
+                        action = GestureAction.SCROLL_DOWN
+                        self.last_scroll_y = curr_y
+                else:
                     self.last_scroll_y = curr_y
             else:
-                self.last_scroll_y = curr_y
-        else:
-            self.last_scroll_y = None
+                self.last_scroll_y = None
 
         debug_info = {
             "mode": "Single-Hand (All-in-One)",

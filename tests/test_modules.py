@@ -12,8 +12,15 @@ from src.config import FRAME_WIDTH, FRAME_HEIGHT, MARGIN_X, MARGIN_Y
 
 class TestVirtualCursor(unittest.TestCase):
 
+    @classmethod
+    def setUpClass(cls):
+        cls.detector = HandDetector(max_hands=2)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.detector.close()
+
     def setUp(self):
-        self.detector = HandDetector(max_hands=2)
         self.classifier = GestureClassifier()
         self.mouse = MouseController()
         self.visualizer = Visualizer()
@@ -155,8 +162,10 @@ class TestVirtualCursor(unittest.TestCase):
 
         # Advance timer past cooldown and test right click
         self.mouse.last_right_click = 0
+        self.mouse.last_click_event_time = 0
         pos, r_clicked = self.mouse.execute_action((300, 300), GestureAction.RIGHT_CLICK)
         self.assertTrue(self.mouse.is_right_clicked)
+
 
         # Test scroll
         self.mouse.last_scroll = 0
@@ -173,17 +182,15 @@ class TestVirtualCursor(unittest.TestCase):
         self.mouse.prev_x = orig_x
         self.mouse.prev_y = orig_y
 
+        t0 = 1000.0
         # When hand first appears at (400, 300), cursor stays at original position
-        target_pos, _ = self.mouse.execute_action((400, 300), GestureAction.MOVE)
+        target_pos, _ = self.mouse.execute_action((400, 300), GestureAction.MOVE, timestamp=t0)
         self.assertEqual(target_pos[0], orig_x)
         self.assertEqual(target_pos[1], orig_y)
 
-        # When hand moves +20px right, cursor moves right relative to original position
-        target_pos2, _ = self.mouse.execute_action((420, 300), GestureAction.MOVE)
+        # When hand moves +20px right at 30fps (t = t0 + 0.033), cursor moves right relative to original position
+        target_pos2, _ = self.mouse.execute_action((420, 300), GestureAction.MOVE, timestamp=t0 + 0.033)
         self.assertGreater(target_pos2[0], orig_x)
-
-    def tearDown(self):
-        self.detector.close()
 
 
 

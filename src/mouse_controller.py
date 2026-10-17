@@ -47,6 +47,7 @@ from src.config import (
     MOUSE_SENSITIVITY
 )
 from src.gesture_classifier import GestureAction
+from src.filter import PointFilter2D
 
 
 class MouseController:
@@ -79,20 +80,28 @@ class MouseController:
         # State tracking for smoothing & stabilization
         self.prev_x = self.screen_width // 2
         self.prev_y = self.screen_height // 2
+        self.curr_screen_x = float(self.prev_x)
+        self.curr_screen_y = float(self.prev_y)
 
-        # Debouncing and stabilization timestamps
+        # 1 Euro Filter for camera input stabilization (eliminates sensor noise & landmark flutter)
+        self.input_filter = PointFilter2D(min_cutoff=1.0, beta=0.018, d_cutoff=1.0)
+
+        # Debouncing, drag and stabilization timestamps
         self.last_left_click = 0.0
         self.last_right_click = 0.0
         self.last_scroll = 0.0
         self.last_click_event_time = 0.0
+        self.is_dragging = False
+        self.pinch_start_time = 0.0
+        self.pinch_start_pos = (self.prev_x, self.prev_y)
 
         # Dynamic active area margins (smaller margin = larger control frame area)
         self.margin_x = MARGIN_X
         self.margin_y = MARGIN_Y
 
         # Relative tracking state (stores previous hand camera coordinate)
-        self.prev_hand_x: Optional[int] = None
-        self.prev_hand_y: Optional[int] = None
+        self.prev_hand_x: Optional[float] = None
+        self.prev_hand_y: Optional[float] = None
 
         # Click state indicator
         self.is_left_clicked = False
@@ -156,6 +165,20 @@ class MouseController:
         else:
             pyautogui.moveTo(x, y)
 
+    def mouse_down_left(self):
+        """Presses and holds the left mouse button down."""
+        if IS_WINDOWS and user32:
+            user32.mouse_event(self.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+        else:
+            pyautogui.mouseDown()
+
+    def mouse_up_left(self):
+        """Releases the held left mouse button."""
+        if IS_WINDOWS and user32:
+            user32.mouse_event(self.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
+        else:
+            pyautogui.mouseUp()
+
     def trigger_left_click(self):
         """Triggers left click globally across any active application."""
         if IS_WINDOWS and user32:
@@ -181,122 +204,177 @@ class MouseController:
         else:
             pyautogui.scroll(amount)
 
+    def _update_position(self, cam_x: float, cam_y: float) -> Tuple[int, int]:
+        """Calculates and updates screen position with precision float accumulation and velocity curves."""
+        if self.control_mode == "relative":
+            if self.prev_hand_x is None or self.prev_hand_y is None:
+                cur_x, cur_y = self.get_cursor_pos()
+                self.curr_screen_x = float(cur_x)
+                self.curr_screen_y = float(cur_y)
+                self.prev_x = cur_x
+                self.prev_y = cur_y
+                self.prev_hand_x = cam_x
+                self.prev_hand_y = cam_y
+                return (cur_x, cur_y)
+
+            dx = cam_x - self.prev_hand_x
+            dy = cam_y - self.prev_hand_y
+            self.prev_hand_x = cam_x
+            self.prev_hand_y = cam_y
+
+            dist_hand = math.hypot(dx, dy)
+            if dist_hand < 0.25:
+                return (self.prev_x, self.prev_y)
+
+            # Continuous Precision & Acceleration Curve:
+            # Low speed (<2.0px): scale down to 0.65x for fine pixel precision
+            # Medium speed (2.0-10.0px): natural 1.0x-1.5x
+            # Fast speed (>10.0px): scale up to 2.8x for effortless corner reach
+            if dist_hand < 2.0:
+                speed_mult = 0.65 + (dist_hand / 2.0) * 0.35
+            elif dist_hand < 10.0:
+                speed_mult = 1.0 + ((dist_hand - 2.0) / 8.0) * 0.5
+            else:
+                speed_mult = 1.5 + min(1.3, (dist_hand - 10.0) / 12.0)
+
+            step_x = dx * self.sensitivity * speed_mult
+            step_y = dy * self.sensitivity * speed_mult
+
+            # Float accumulation eliminates integer truncation jitter
+            self.curr_screen_x += step_x
+            self.curr_screen_y += step_y
+
+            # Clamp strictly to screen dimensions
+            self.curr_screen_x = max(0.0, min(float(self.screen_width - 1), self.curr_screen_x))
+            self.curr_screen_y = max(0.0, min(float(self.screen_height - 1), self.curr_screen_y))
+
+            out_x = int(round(self.curr_screen_x))
+            out_y = int(round(self.curr_screen_y))
+
+            self.prev_x = out_x
+            self.prev_y = out_y
+            try:
+                self.set_cursor_pos(out_x, out_y)
+            except Exception:
+                pass
+            return (out_x, out_y)
+        else:
+            # Absolute mode
+            smooth_x, smooth_y = self.map_coordinates(int(round(cam_x)), int(round(cam_y)))
+            self.curr_screen_x = float(smooth_x)
+            self.curr_screen_y = float(smooth_y)
+            try:
+                self.set_cursor_pos(smooth_x, smooth_y)
+            except Exception:
+                pass
+            return (smooth_x, smooth_y)
+
     def execute_action(
         self,
         cursor_pos: Optional[Tuple[int, int]],
-        action: GestureAction
+        action: GestureAction,
+        timestamp: Optional[float] = None
     ) -> Tuple[Optional[Tuple[int, int]], bool]:
         """
         Executes OS mouse action according to gesture.
-        In Relative Mode: Anchors to current physical cursor position on hand entry (NO JUMP),
-        and applies dynamic speed curve to reach all screen corners effortlessly.
-        Locks cursor position during and immediately after a click to eliminate click jitter.
+        - PointFilter2D (1 Euro Filter) stabilizes camera coordinates.
+        - Sub-pixel float accumulator provides buttery-smooth tracking.
+        - Supports True Drag & Drop and Text Selection (hold pinch to drag, release to drop).
         """
-        current_time = time.time()
+        current_time = time.time() if timestamp is None else float(timestamp)
         self.is_left_clicked = False
         self.is_right_clicked = False
         target_screen_pos = None
 
-        is_clicking_gesture = action in (GestureAction.LEFT_CLICK, GestureAction.RIGHT_CLICK)
-        is_in_click_freeze = (current_time - self.last_click_event_time) < self.click_freeze_time
-
-        # 1. Update cursor position
         if cursor_pos is None:
-            # Hand is NOT visible: reset relative tracking anchor so it doesn't jump when re-entering
+            # Hand leaves camera view: release any held drag and reset filters
+            if self.is_dragging:
+                self.mouse_up_left()
+                self.is_dragging = False
+            self.input_filter.reset()
             self.prev_hand_x = None
             self.prev_hand_y = None
-            if is_in_click_freeze:
-                target_screen_pos = (self.prev_x, self.prev_y)
-        else:
-            if is_clicking_gesture or is_in_click_freeze:
-                # FREEZE position at target button during click!
-                target_screen_pos = (self.prev_x, self.prev_y)
-                # Keep hand coordinate anchor updated so releasing freeze does not cause sudden jump
-                self.prev_hand_x = cursor_pos[0]
-                self.prev_hand_y = cursor_pos[1]
-            elif self.control_mode == "relative":
-                # RELATIVE / TOUCHPAD / AIR-MOUSE MODE
-                # If hand JUST appeared, keep cursor in current position (NO JUMP!)
-                if self.prev_hand_x is None or self.prev_hand_y is None:
-                    cur_x, cur_y = self.get_cursor_pos()
-                    self.prev_x = cur_x
-                    self.prev_y = cur_y
-                    self.prev_hand_x = cursor_pos[0]
-                    self.prev_hand_y = cursor_pos[1]
-                    target_screen_pos = (cur_x, cur_y)
-                else:
-                    # Hand delta in camera coordinates
-                    dx = cursor_pos[0] - self.prev_hand_x
-                    dy = cursor_pos[1] - self.prev_hand_y
-                    self.prev_hand_x = cursor_pos[0]
-                    self.prev_hand_y = cursor_pos[1]
+            return (self.prev_x, self.prev_y), False
 
-                    # Filter out sub-pixel sensor noise
-                    dist_hand = math.hypot(dx, dy)
-                    if dist_hand < 1.0:
-                        dx, dy = 0.0, 0.0
+        # Filter raw camera coordinates through 1 Euro Filter
+        filtered_cam_x, filtered_cam_y = self.input_filter.filter(
+            float(cursor_pos[0]),
+            float(cursor_pos[1]),
+            current_time
+        )
 
-                    # Dynamic speed curve: gentle hand movement gives fine precision,
-                    # faster hand flick gives quick screen-spanning traversal to reach any corner
-                    speed_boost = 1.0 + min(1.8, dist_hand / 25.0)
-                    target_x = self.prev_x + dx * self.sensitivity * speed_boost
-                    target_y = self.prev_y + dy * self.sensitivity * speed_boost
-
-                    # Clamp strictly to screen dimensions
-                    target_x = max(0, min(self.screen_width - 1, target_x))
-                    target_y = max(0, min(self.screen_height - 1, target_y))
-
-                    # Tremor deadzone & smoothing
-                    delta_dist = math.hypot(target_x - self.prev_x, target_y - self.prev_y)
-                    if delta_dist < self.deadzone_radius:
-                        smooth_x, smooth_y = self.prev_x, self.prev_y
-                    else:
-                        adaptive_factor = max(1.2, float(self.smoothing_factor) * (0.6 if delta_dist > 35 else 1.0))
-                        smooth_x = int(self.prev_x + (target_x - self.prev_x) / adaptive_factor)
-                        smooth_y = int(self.prev_y + (target_y - self.prev_y) / adaptive_factor)
-
-                    self.prev_x, self.prev_y = smooth_x, smooth_y
-                    target_screen_pos = (smooth_x, smooth_y)
-                    try:
-                        self.set_cursor_pos(smooth_x, smooth_y)
-                    except Exception:
-                        pass
-            else:
-                # ABSOLUTE MODE (Direct camera-to-screen mapping)
-                smooth_x, smooth_y = self.map_coordinates(cursor_pos[0], cursor_pos[1])
-                target_screen_pos = (smooth_x, smooth_y)
-                try:
-                    self.set_cursor_pos(smooth_x, smooth_y)
-                except Exception:
-                    pass
-
-        # 2. Execute discrete gesture actions
+        # 1. SMART DRAG & CLICK HANDLING
         if action == GestureAction.LEFT_CLICK:
-            if current_time - self.last_left_click > CLICK_COOLDOWN:
-                self.last_click_event_time = current_time
-                self.trigger_left_click()
+            self.is_left_clicked = True
+            if not self.is_dragging:
+                self.is_dragging = True
+                self.pinch_start_time = current_time
+                self.pinch_start_pos = (self.prev_x, self.prev_y)
+                self.mouse_down_left()
                 self.last_left_click = current_time
-                self.is_left_clicked = True
-                return target_screen_pos, True
-
-        elif action == GestureAction.RIGHT_CLICK:
-            if current_time - self.last_right_click > RIGHT_CLICK_COOLDOWN:
                 self.last_click_event_time = current_time
+
+            pinch_duration = current_time - self.pinch_start_time
+            drag_dist = math.hypot(
+                self.curr_screen_x - self.pinch_start_pos[0],
+                self.curr_screen_y - self.pinch_start_pos[1]
+            )
+
+            # First 0.12s of pinch: freeze on target element to eliminate click drift
+            if pinch_duration < 0.12 and drag_dist < 12.0:
+                target_screen_pos = (self.prev_x, self.prev_y)
+                self.prev_hand_x = filtered_cam_x
+                self.prev_hand_y = filtered_cam_y
+            else:
+                # Dragging while holding button down (selecting text, dragging window)
+                target_screen_pos = self._update_position(filtered_cam_x, filtered_cam_y)
+            return target_screen_pos, True
+
+        else:
+            # Pinch released: end any ongoing drag
+            if self.is_dragging:
+                self.mouse_up_left()
+                self.is_dragging = False
+                self.last_click_event_time = current_time
+                target_screen_pos = (self.prev_x, self.prev_y)
+                self.prev_hand_x = filtered_cam_x
+                self.prev_hand_y = filtered_cam_y
+
+        # 2. DISCRETE GESTURE ACTIONS
+        if action == GestureAction.RIGHT_CLICK:
+            target_screen_pos = (self.prev_x, self.prev_y)
+            self.prev_hand_x = filtered_cam_x
+            self.prev_hand_y = filtered_cam_y
+            if current_time - self.last_right_click > RIGHT_CLICK_COOLDOWN:
                 self.trigger_right_click()
                 self.last_right_click = current_time
                 self.is_right_clicked = True
+                self.last_click_event_time = current_time
                 return target_screen_pos, True
 
         elif action == GestureAction.SCROLL_UP:
             if current_time - self.last_scroll > SCROLL_COOLDOWN:
                 self.trigger_scroll(120)
                 self.last_scroll = current_time
+                target_screen_pos = (self.prev_x, self.prev_y)
                 return target_screen_pos, True
 
         elif action == GestureAction.SCROLL_DOWN:
             if current_time - self.last_scroll > SCROLL_COOLDOWN:
                 self.trigger_scroll(-120)
                 self.last_scroll = current_time
+                target_screen_pos = (self.prev_x, self.prev_y)
                 return target_screen_pos, True
 
+        else:
+            # Regular cursor movement (apply brief click-lock stabilization if just clicked/released)
+            if (current_time - self.last_click_event_time) < 0.15:
+                target_screen_pos = (self.prev_x, self.prev_y)
+                self.prev_hand_x = filtered_cam_x
+                self.prev_hand_y = filtered_cam_y
+            else:
+                target_screen_pos = self._update_position(filtered_cam_x, filtered_cam_y)
+
         return target_screen_pos, False
+
+
