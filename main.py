@@ -1,6 +1,20 @@
 import sys
 import types
 
+# Ensure Per-Monitor DPI Awareness V2 is initialized before any GUI or graphics libraries load
+if sys.platform == "win32":
+    try:
+        import ctypes
+        ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
+    except Exception:
+        try:
+            ctypes.windll.shcore.SetProcessDpiAwareness(2)
+        except Exception:
+            try:
+                ctypes.windll.user32.SetProcessDPIAware()
+            except Exception:
+                pass
+
 # Provide lightweight stubs for matplotlib if missing (MediaPipe drawing_utils imports it unconditionally)
 if "matplotlib" not in sys.modules:
     try:

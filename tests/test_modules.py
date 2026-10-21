@@ -43,17 +43,17 @@ class TestVirtualCursor(unittest.TestCase):
         self.assertAlmostEqual(sx, self.mouse.screen_width // 2, delta=20)
         self.assertAlmostEqual(sy, self.mouse.screen_height // 2, delta=20)
 
-        # Converge towards (0, 0) over several iterations; stops within deadzone radius
+        # Converge towards screen origin (0, 0) - reaches exact minimum boundary
         for _ in range(30):
             sx_min, sy_min = self.mouse.map_coordinates(0, 0)
-        self.assertLessEqual(sx_min, 8)
-        self.assertLessEqual(sy_min, 8)
+        self.assertEqual(sx_min, self.mouse.screen_x)
+        self.assertEqual(sy_min, self.mouse.screen_y)
 
-        # Converge to max boundaries
+        # Converge to max boundaries - reaches exact maximum boundary
         for _ in range(30):
             sx_max, sy_max = self.mouse.map_coordinates(FRAME_WIDTH, FRAME_HEIGHT)
-        self.assertLessEqual(sx_max, self.mouse.screen_width - 1)
-        self.assertLessEqual(sy_max, self.mouse.screen_height - 1)
+        self.assertEqual(sx_max, self.mouse.screen_x + self.mouse.screen_width - 1)
+        self.assertEqual(sy_max, self.mouse.screen_y + self.mouse.screen_height - 1)
 
     def test_gesture_classifier_no_hands(self):
         """Verify classifier outputs IDLE when no hands detected."""

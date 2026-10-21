@@ -39,7 +39,7 @@ CLICK_FREEZE_TIME = 0.35       # Seconds to lock/freeze cursor position during a
 # 'relative' (Air Mouse / Touchpad): Keeps cursor in original position when hand appears, moves relative to it, reaches all corners easily.
 # 'absolute': Maps camera frame coordinates directly to screen pixels.
 CONTROL_MODE = "relative"
-MOUSE_SENSITIVITY = 2.2        # Movement multiplier for relative mode
+MOUSE_SENSITIVITY = 2.4        # Movement multiplier for relative mode (effortless full screen coverage)
 
 # Gesture Thresholds (in pixels for 640x480 frame)
 PINCH_THRESHOLD_CLICK = 38     # Thumb tip to Index tip distance to trigger Left Click

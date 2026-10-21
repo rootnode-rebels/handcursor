@@ -16,12 +16,15 @@ if IS_WINDOWS:
     import ctypes
     from ctypes import wintypes
     try:
-        ctypes.windll.shcore.SetProcessDpiAwareness(2)
+        ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
     except Exception:
         try:
-            ctypes.windll.user32.SetProcessDPIAware()
+            ctypes.windll.shcore.SetProcessDpiAwareness(2)
         except Exception:
-            pass
+            try:
+                ctypes.windll.user32.SetProcessDPIAware()
+            except Exception:
+                pass
     user32 = ctypes.windll.user32
 
     class POINT(ctypes.Structure):
@@ -64,11 +67,11 @@ class MouseController:
         pyautogui.PAUSE = 0.0
         pyautogui.FAILSAFE = False
 
-        if IS_WINDOWS and user32:
-            self.screen_width = user32.GetSystemMetrics(0)
-            self.screen_height = user32.GetSystemMetrics(1)
-        else:
-            self.screen_width, self.screen_height = pyautogui.size()
+        self.screen_x = 0
+        self.screen_y = 0
+        self.screen_width = 1920
+        self.screen_height = 1080
+        self.update_screen_metrics()
 
         # Configurable parameters (can be adjusted live via GUI sliders)
         self.control_mode = CONTROL_MODE  # "relative" (Air Mouse) or "absolute"
@@ -107,6 +110,30 @@ class MouseController:
         self.is_left_clicked = False
         self.is_right_clicked = False
 
+    def update_screen_metrics(self):
+        """Updates screen bounds to adapt dynamically to high-DPI scaling and multi-monitor setups."""
+        if IS_WINDOWS and user32:
+            try:
+                user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
+            except Exception:
+                pass
+            vw = user32.GetSystemMetrics(78)  # SM_CXVIRTUALSCREEN
+            vh = user32.GetSystemMetrics(79)  # SM_CYVIRTUALSCREEN
+            if vw > 0 and vh > 0:
+                self.screen_x = user32.GetSystemMetrics(76)  # SM_XVIRTUALSCREEN
+                self.screen_y = user32.GetSystemMetrics(77)  # SM_YVIRTUALSCREEN
+                self.screen_width = vw
+                self.screen_height = vh
+            else:
+                self.screen_x = 0
+                self.screen_y = 0
+                self.screen_width = user32.GetSystemMetrics(0)
+                self.screen_height = user32.GetSystemMetrics(1)
+        else:
+            self.screen_x = 0
+            self.screen_y = 0
+            self.screen_width, self.screen_height = pyautogui.size()
+
     def get_cursor_pos(self) -> Tuple[int, int]:
         """Gets current physical cursor position on the screen."""
         if IS_WINDOWS and user32 and POINT:
@@ -116,44 +143,56 @@ class MouseController:
         pos = pyautogui.position()
         return int(pos[0]), int(pos[1])
 
-
     def map_coordinates(self, camera_x: int, camera_y: int) -> Tuple[int, int]:
         """
         Maps camera coordinates to screen coordinates with:
-        - Bounding box margin projection
-        - Deadzone tremor cancellation
+        - Bounding box margin projection across the full virtual desktop
+        - Edge and corner accessibility (boundaries never blocked by deadzone)
+        - Deadzone tremor cancellation during mid-screen hovering
         - Speed-adaptive smoothing
         """
-        # 1. Project within active camera margins
+        min_x = self.screen_x
+        max_x = self.screen_x + self.screen_width - 1
+        min_y = self.screen_y
+        max_y = self.screen_y + self.screen_height - 1
+
+        # 1. Project within active camera margins across entire screen area
         screen_x = np.interp(
             camera_x,
             [self.margin_x, FRAME_WIDTH - self.margin_x],
-            [0, self.screen_width]
+            [min_x, max_x]
         )
         screen_y = np.interp(
             camera_y,
             [self.margin_y, FRAME_HEIGHT - self.margin_y],
-            [0, self.screen_height]
+            [min_y, max_y]
         )
 
-        screen_x = int(np.clip(screen_x, 0, self.screen_width - 1))
-        screen_y = int(np.clip(screen_y, 0, self.screen_height - 1))
+        screen_x = int(round(np.clip(screen_x, min_x, max_x)))
+        screen_y = int(round(np.clip(screen_y, min_y, max_y)))
 
-        # 2. Deadzone Filter: ignore involuntary finger twitch when hovering
+        # 2. Deadzone Tremor Filter: ignore involuntary finger twitch when hovering,
+        # but NEVER prevent the user from reaching the exact screen corners and borders!
         delta_dist = math.hypot(screen_x - self.prev_x, screen_y - self.prev_y)
-        if delta_dist < self.deadzone_radius:
+        is_at_boundary = (screen_x <= min_x or screen_x >= max_x or screen_y <= min_y or screen_y >= max_y)
+
+        if delta_dist < self.deadzone_radius and not is_at_boundary:
             return self.prev_x, self.prev_y
 
-        # 3. Adaptive Smoothing:
-        if delta_dist > 60:
-            adaptive_smoothing = max(2, self.smoothing_factor - 1)
-        elif delta_dist < 20:
-            adaptive_smoothing = self.smoothing_factor + 3
+        # 3. Adaptive Smoothing: snap cleanly to boundaries when hand touches active margin
+        if is_at_boundary and delta_dist <= 12:
+            smooth_x = screen_x
+            smooth_y = screen_y
         else:
-            adaptive_smoothing = self.smoothing_factor
+            if delta_dist > 60:
+                adaptive_smoothing = max(2, self.smoothing_factor - 1)
+            elif delta_dist < 20:
+                adaptive_smoothing = self.smoothing_factor + 3
+            else:
+                adaptive_smoothing = self.smoothing_factor
 
-        smooth_x = int(self.prev_x + (screen_x - self.prev_x) / adaptive_smoothing)
-        smooth_y = int(self.prev_y + (screen_y - self.prev_y) / adaptive_smoothing)
+            smooth_x = int(self.prev_x + (screen_x - self.prev_x) / adaptive_smoothing)
+            smooth_y = int(self.prev_y + (screen_y - self.prev_y) / adaptive_smoothing)
 
         self.prev_x, self.prev_y = smooth_x, smooth_y
         return smooth_x, smooth_y
@@ -229,13 +268,13 @@ class MouseController:
             # Continuous Precision & Acceleration Curve:
             # Low speed (<2.0px): scale down to 0.65x for fine pixel precision
             # Medium speed (2.0-10.0px): natural 1.0x-1.5x
-            # Fast speed (>10.0px): scale up to 2.8x for effortless corner reach
+            # Fast speed (>10.0px): scale up to 3.2x for effortless full screen traversal
             if dist_hand < 2.0:
                 speed_mult = 0.65 + (dist_hand / 2.0) * 0.35
             elif dist_hand < 10.0:
                 speed_mult = 1.0 + ((dist_hand - 2.0) / 8.0) * 0.5
             else:
-                speed_mult = 1.5 + min(1.3, (dist_hand - 10.0) / 12.0)
+                speed_mult = 1.5 + min(1.7, (dist_hand - 10.0) / 10.0)
 
             step_x = dx * self.sensitivity * speed_mult
             step_y = dy * self.sensitivity * speed_mult
@@ -244,9 +283,13 @@ class MouseController:
             self.curr_screen_x += step_x
             self.curr_screen_y += step_y
 
-            # Clamp strictly to screen dimensions
-            self.curr_screen_x = max(0.0, min(float(self.screen_width - 1), self.curr_screen_x))
-            self.curr_screen_y = max(0.0, min(float(self.screen_height - 1), self.curr_screen_y))
+            # Clamp strictly to full screen/virtual desktop bounds
+            min_x = float(self.screen_x)
+            max_x = float(self.screen_x + self.screen_width - 1)
+            min_y = float(self.screen_y)
+            max_y = float(self.screen_y + self.screen_height - 1)
+            self.curr_screen_x = max(min_x, min(max_x, self.curr_screen_x))
+            self.curr_screen_y = max(min_y, min(max_y, self.curr_screen_y))
 
             out_x = int(round(self.curr_screen_x))
             out_y = int(round(self.curr_screen_y))

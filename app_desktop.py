@@ -83,6 +83,7 @@ class DesktopTrackingWorker(QThread):
         self.mouse.margin_y = max(10, int(margin * 0.8))
         self.mouse.control_mode = control_mode
         self.mouse.sensitivity = sensitivity
+        self.mouse.update_screen_metrics()
         self.visualizer.margin_x = margin
         self.visualizer.margin_y = max(10, int(margin * 0.8))
         self.visualizer.control_mode = control_mode
@@ -209,6 +210,9 @@ class DesktopAppWindow(QtWidgets.QMainWindow):
         self.worker = DesktopTrackingWorker()
         self.worker.frame_ready.connect(self.update_display)
         self.worker.error_occurred.connect(self.show_error)
+
+        # Synchronize initial GUI slider settings with worker
+        self.on_settings_changed()
 
         # Position window at bottom-right of screen
         screen = QtWidgets.QApplication.primaryScreen().geometry()
@@ -454,7 +458,7 @@ class DesktopAppWindow(QtWidgets.QMainWindow):
         self.lbl_sens = QtWidgets.QLabel(f"Air Mouse Sensitivity: {MOUSE_SENSITIVITY}x (Full Screen Reach)")
         self.lbl_sens.setStyleSheet("font-size: 11px; font-weight: 600;")
         self.slider_sens = QtWidgets.QSlider(Qt.Orientation.Horizontal)
-        self.slider_sens.setRange(10, 45)
+        self.slider_sens.setRange(10, 60)
         self.slider_sens.setValue(int(MOUSE_SENSITIVITY * 10))
         self.slider_sens.valueChanged.connect(self.on_settings_changed)
         settings_layout.addWidget(self.lbl_sens)
@@ -494,7 +498,7 @@ class DesktopAppWindow(QtWidgets.QMainWindow):
         self.lbl_margin = QtWidgets.QLabel(f"Active Frame Size: {FRAME_WIDTH - 2*MARGIN_X}×{FRAME_HEIGHT - 2*MARGIN_Y} px (Margin: {MARGIN_X}px)")
         self.lbl_margin.setStyleSheet("font-size: 11px; font-weight: 600;")
         self.slider_margin = QtWidgets.QSlider(Qt.Orientation.Horizontal)
-        self.slider_margin.setRange(15, 90)
+        self.slider_margin.setRange(10, 90)
         self.slider_margin.setValue(MARGIN_X)
         self.slider_margin.valueChanged.connect(self.on_settings_changed)
         settings_layout.addWidget(self.lbl_margin)
