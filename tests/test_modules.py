@@ -193,6 +193,28 @@ class TestVirtualCursor(unittest.TestCase):
         target_pos2, _ = self.mouse.execute_action((420, 300), GestureAction.MOVE, timestamp=t0 + 0.033)
         self.assertGreater(target_pos2[0], orig_x)
 
+    def test_pinch_finger_curl_stability(self):
+        """Verify that curling index finger towards thumb to click does not displace cursor."""
+        # Initial pointing frame: index extended at (300, 200), thumb at (220, 240)
+        lms1 = [(300, 400, 0)] + [(300, 350 - i*15, 0) for i in range(20)]
+        lms1[5] = (300, 270, 0)   # Index knuckle
+        lms1[8] = (300, 200, 0)   # Index tip
+        lms1[4] = (220, 240, 0)   # Thumb tip (dist ~89px)
+        lms1[20] = (350, 300, 0)  # Pinky far away
+
+        hand1 = {"label": "Right", "landmarks": lms1}
+        pos1, action1, _ = self.classifier.classify_hands([hand1], self.detector)
+        self.assertEqual(pos1, (300, 200))
+
+        # Finger curls towards thumb: tip moves -30px X, +15px Y; knuckle remains stationary at (300, 270)
+        lms2 = list(lms1)
+        lms2[8] = (270, 215, 0)   # Index tip moved toward thumb (dist ~56px)
+        hand2 = {"label": "Right", "landmarks": lms2}
+        pos2, action2, _ = self.classifier.classify_hands([hand2], self.detector)
+
+        # Cursor position must remain anchored at original target (300, 200)
+        self.assertEqual(pos2, (300, 200))
+
 
 
 if __name__ == "__main__":

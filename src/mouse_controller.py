@@ -363,9 +363,10 @@ class MouseController:
                 self.curr_screen_y - self.pinch_start_pos[1]
             )
 
-            # First 0.12s of pinch: freeze on target element to eliminate click drift
-            if pinch_duration < 0.12 and drag_dist < 12.0:
-                target_screen_pos = (self.prev_x, self.prev_y)
+            # Lock cursor firmly on target element during click gesture.
+            # Only start dragging if hand moves deliberately beyond drag deadzone (> 18px).
+            if drag_dist < 18.0:
+                target_screen_pos = (self.pinch_start_pos[0], self.pinch_start_pos[1])
                 self.prev_hand_x = filtered_cam_x
                 self.prev_hand_y = filtered_cam_y
             else:

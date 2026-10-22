@@ -4,6 +4,7 @@ into mouse commands (Move, Left Click, Right Click, Scroll, Idle).
 Supports both Dual-Hand mode (Right moves, Left clicks) and Single-Hand mode.
 """
 from enum import Enum, auto
+import math
 from typing import Dict, List, Optional, Tuple
 from src.config import (
     PINCH_THRESHOLD_CLICK,
@@ -34,7 +35,10 @@ class GestureClassifier:
         self.last_scroll_y: Optional[int] = None
         self.is_left_pinched: bool = False
         self.is_right_pinched: bool = False
-
+        self.pinch_anchor: Optional[Tuple[int, int]] = None
+        self.pinch_knuckle: Optional[Tuple[int, int]] = None
+        self.dual_anchor: Optional[Tuple[int, int]] = None
+        self.dual_knuckle: Optional[Tuple[int, int]] = None
 
     def classify_hands(
         self,
@@ -53,6 +57,10 @@ class GestureClassifier:
             self.last_scroll_y = None
             self.is_left_pinched = False
             self.is_right_pinched = False
+            self.pinch_anchor = None
+            self.pinch_knuckle = None
+            self.dual_anchor = None
+            self.dual_knuckle = None
             return None, GestureAction.IDLE, {"mode": "No Hands Detected"}
 
         # ---------------------------------------------------------------------
@@ -76,8 +84,26 @@ class GestureClassifier:
             cursor_fingers = detector.fingers_up(cursor_hand)
             action_fingers = detector.fingers_up(action_hand)
 
-            # Cursor position is index fingertip (landmark 8)
-            cursor_pos = (cursor_lms[8][0], cursor_lms[8][1])
+            cursor_raw = (cursor_lms[8][0], cursor_lms[8][1])
+            cursor_knuckle = (cursor_lms[5][0], cursor_lms[5][1])
+
+            # In dual hand mode, index tip (landmark 8) points cleanly.
+            # Stabilize cursor position when actions are executing so sympathetic finger twitch on cursor hand never moves cursor.
+            if not self.is_left_pinched and not self.is_right_pinched:
+                self.dual_anchor = cursor_raw
+                self.dual_knuckle = cursor_knuckle
+                cursor_pos = cursor_raw
+            else:
+                if self.dual_anchor is not None and self.dual_knuckle is not None:
+                    k_dx = cursor_knuckle[0] - self.dual_knuckle[0]
+                    k_dy = cursor_knuckle[1] - self.dual_knuckle[1]
+                    k_disp = math.hypot(k_dx, k_dy)
+                    if k_disp < 14.0:
+                        cursor_pos = self.dual_anchor
+                    else:
+                        cursor_pos = (int(round(self.dual_anchor[0] + k_dx)), int(round(self.dual_anchor[1] + k_dy)))
+                else:
+                    cursor_pos = cursor_raw
 
             # Calculate pinches on action hand (Left Hand)
             d_thumb_index = detector.calculate_distance(
@@ -144,10 +170,29 @@ class GestureClassifier:
         hand = hands[0]
         lms = hand["landmarks"]
         fingers = detector.fingers_up(hand)
-        cursor_pos = (lms[8][0], lms[8][1])
+        raw_cursor = (lms[8][0], lms[8][1])
+        knuckle = (lms[5][0], lms[5][1])
 
         d_thumb_index = detector.calculate_distance((lms[4][0], lms[4][1]), (lms[8][0], lms[8][1]))
         d_thumb_pinky = detector.calculate_distance((lms[4][0], lms[4][1]), (lms[20][0], lms[20][1]))
+
+        # Pre-pinch stabilization: when index finger curls inward to pinch the thumb,
+        # anchor the cursor to the target position so curling motion never displaces the cursor.
+        # Knuckle displacement tracks real intentional whole-hand movement (e.g. dragging).
+        is_closing_pinch = (d_thumb_index <= 68.0 or d_thumb_pinky <= 68.0 or self.is_left_pinched or self.is_right_pinched)
+
+        if not is_closing_pinch or self.pinch_anchor is None or self.pinch_knuckle is None:
+            self.pinch_anchor = raw_cursor
+            self.pinch_knuckle = knuckle
+            cursor_pos = raw_cursor
+        else:
+            k_dx = knuckle[0] - self.pinch_knuckle[0]
+            k_dy = knuckle[1] - self.pinch_knuckle[1]
+            k_disp = math.hypot(k_dx, k_dy)
+            if k_disp < 14.0:
+                cursor_pos = self.pinch_anchor
+            else:
+                cursor_pos = (int(round(self.pinch_anchor[0] + k_dx)), int(round(self.pinch_anchor[1] + k_dy)))
 
         action = GestureAction.IDLE
 
@@ -194,7 +239,7 @@ class GestureClassifier:
             "action": action.name,
             "cursor_pos": cursor_pos,
             "pinch_click": round(d_thumb_index, 1),
-            "pinch_right": round(d_thumb_middle, 1),
+            "pinch_pinky_right": round(d_thumb_pinky, 1),
             "hand_label": hand.get("label", "Unknown")
         }
         return cursor_pos, action, debug_info
