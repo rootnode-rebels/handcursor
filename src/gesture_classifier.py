@@ -84,9 +84,11 @@ class GestureClassifier:
                 (action_lms[4][0], action_lms[4][1]),
                 (action_lms[8][0], action_lms[8][1])
             )
-            d_thumb_middle = detector.calculate_distance(
+            # Small finger / Pinky (landmark 20) + Thumb (landmark 4) for Right Click
+            # Completely avoids confusion between index and middle fingers
+            d_thumb_pinky = detector.calculate_distance(
                 (action_lms[4][0], action_lms[4][1]),
-                (action_lms[12][0], action_lms[12][1])
+                (action_lms[20][0], action_lms[20][1])
             )
 
             # Check action gestures on left hand with hysteresis
@@ -98,7 +100,7 @@ class GestureClassifier:
                 else:
                     action = GestureAction.LEFT_CLICK
             elif self.is_right_pinched:
-                if d_thumb_middle > PINCH_THRESHOLD_RELEASE:
+                if d_thumb_pinky > PINCH_THRESHOLD_RELEASE:
                     self.is_right_pinched = False
                 else:
                     action = GestureAction.RIGHT_CLICK
@@ -106,7 +108,7 @@ class GestureClassifier:
                 if d_thumb_index < PINCH_THRESHOLD_CLICK:
                     self.is_left_pinched = True
                     action = GestureAction.LEFT_CLICK
-                elif d_thumb_middle < PINCH_THRESHOLD_RIGHT:
+                elif d_thumb_pinky < PINCH_THRESHOLD_RIGHT:
                     self.is_right_pinched = True
                     action = GestureAction.RIGHT_CLICK
                 elif action_fingers[1] and action_fingers[2] and not action_fingers[3]:
@@ -130,7 +132,7 @@ class GestureClassifier:
                 "action": action.name,
                 "cursor_pos": cursor_pos,
                 "left_pinch_click": round(d_thumb_index, 1),
-                "left_pinch_right": round(d_thumb_middle, 1),
+                "left_pinch_pinky_right": round(d_thumb_pinky, 1),
                 "cursor_hand_label": cursor_hand.get("label", "Right"),
                 "action_hand_label": action_hand.get("label", "Left")
             }
@@ -145,7 +147,7 @@ class GestureClassifier:
         cursor_pos = (lms[8][0], lms[8][1])
 
         d_thumb_index = detector.calculate_distance((lms[4][0], lms[4][1]), (lms[8][0], lms[8][1]))
-        d_thumb_middle = detector.calculate_distance((lms[4][0], lms[4][1]), (lms[12][0], lms[12][1]))
+        d_thumb_pinky = detector.calculate_distance((lms[4][0], lms[4][1]), (lms[20][0], lms[20][1]))
 
         action = GestureAction.IDLE
 
@@ -157,7 +159,7 @@ class GestureClassifier:
             else:
                 action = GestureAction.LEFT_CLICK
         elif self.is_right_pinched:
-            if d_thumb_middle > PINCH_THRESHOLD_RELEASE:
+            if d_thumb_pinky > PINCH_THRESHOLD_RELEASE:
                 self.is_right_pinched = False
                 action = GestureAction.MOVE if fingers[1] else GestureAction.IDLE
             else:
@@ -166,7 +168,7 @@ class GestureClassifier:
             if d_thumb_index < PINCH_THRESHOLD_CLICK:
                 self.is_left_pinched = True
                 action = GestureAction.LEFT_CLICK
-            elif d_thumb_middle < PINCH_THRESHOLD_RIGHT:
+            elif d_thumb_pinky < PINCH_THRESHOLD_RIGHT:
                 self.is_right_pinched = True
                 action = GestureAction.RIGHT_CLICK
             elif fingers[1] and not fingers[2] and not fingers[3] and not fingers[4]:

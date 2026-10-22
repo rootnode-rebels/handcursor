@@ -102,7 +102,7 @@ class TestVirtualCursor(unittest.TestCase):
         self.assertEqual(cursor_pos, (right_hand["landmarks"][8][0], right_hand["landmarks"][8][1]))
 
     def test_dual_hand_right_click(self):
-        """Verify left hand thumb+middle pinch triggers RIGHT_CLICK in dual hand mode."""
+        """Verify left hand thumb+pinky (small finger) pinch triggers RIGHT_CLICK in dual hand mode."""
         right_hand = {
             "label": "Right",
             "landmarks": [(450, 400, 0)] + [(450, 300 - i*20, 0) for i in range(20)]
@@ -110,7 +110,8 @@ class TestVirtualCursor(unittest.TestCase):
         left_lms = [(150, 400, 0)] + [(150, 300 - i*20, 0) for i in range(20)]
         left_lms[4] = (150, 200, 0)   # Thumb tip
         left_lms[8] = (150, 100, 0)   # Index tip far away
-        left_lms[12] = (155, 205, 0)  # Middle tip close (< 10px) -> right click!
+        left_lms[12] = (150, 100, 0)  # Middle tip far away
+        left_lms[20] = (155, 205, 0)  # Pinky (small finger) tip close (< 10px) -> right click!
         left_hand = {
             "label": "Left",
             "landmarks": left_lms

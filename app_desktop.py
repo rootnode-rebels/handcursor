@@ -193,7 +193,7 @@ class DesktopAppWindow(QtWidgets.QMainWindow):
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("AI Virtual Hand Cursor")
+        self.setWindowTitle("Virtual Hand Cursor")
         self.resize(440, 710)
         self.setMinimumSize(380, 580)
 
@@ -411,7 +411,7 @@ class DesktopAppWindow(QtWidgets.QMainWindow):
         l_click.setStyleSheet("font-size: 11px; color: #f472b6;")
         guide_layout.addWidget(l_click)
 
-        l_rclick = QtWidgets.QLabel("• <b>Left Thumb + Middle</b>: Right Click")
+        l_rclick = QtWidgets.QLabel("• <b>Left Thumb + Pinky (Small Finger)</b>: Right Click")
         l_rclick.setStyleSheet("font-size: 11px; color: #c084fc;")
         guide_layout.addWidget(l_rclick)
 

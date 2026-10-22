@@ -1,4 +1,4 @@
-# AI Virtual Hand Cursor Using Hand Gesture Recognition
+# Virtual Hand Cursor Using Hand Gesture Recognition
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![MediaPipe](https://img.shields.io/badge/MediaPipe-Tasks%20Vision-orange.svg)](https://developers.google.com/mediapipe)
@@ -152,7 +152,7 @@ Draws visual feedback directly onto the video feed:
 Pinch detection calculates the Euclidean distance between fingertip $A(x_1, y_1)$ and fingertip $B(x_2, y_2)$ in pixel space:
 $$d(A, B) = \sqrt{(x_2 - x_1)^2 + (y_2 - y_1)^2}$$
 - **Left Click Trigger**: $d(\text{Thumb Tip}_4, \text{Index Tip}_8) < 38\text{px}$
-- **Right Click Trigger**: $d(\text{Thumb Tip}_4, \text{Middle Tip}_{12}) < 38\text{px}$
+- **Right Click Trigger**: $d(\text{Thumb Tip}_4, \text{Pinky Tip}_{20}) < 42\text{px}$ (uses small finger to completely eliminate index/middle finger confusion)
 
 ### 2. Coordinate Linear Interpolation
 Maps camera coordinates $(C_x, C_y)$ within active margins $[M_x, W - M_x]$ to monitor resolution $[0, S_w]$:
@@ -179,8 +179,8 @@ $$P_t = P_{t-1}$$
 | Hand | Gesture Formulation | Action Triggered |
 | :--- | :--- | :--- |
 | **Right Hand** | Index finger extended pointing | **Move Mouse Cursor** |
-| **Left Hand** | Pinch Thumb (4) + Index (8) | **Left Click** (Locks position) |
-| **Left Hand** | Pinch Thumb (4) + Middle (12) | **Right Click** (Context Menu) |
+| **Left Hand** | Pinch Thumb (4) + Index (8) | **Left Click / Drag & Drop** (Locks position on start) |
+| **Left Hand** | Pinch Thumb (4) + Pinky / Small finger (20) | **Right Click** (Context Menu) |
 | **Left Hand** | Index & Middle fingers extended (Swipe Up/Down) | **Scroll Webpage / Document** |
 | **Left Hand** | Neutral Open Palm or Rest | **Free Movement / No Clicks** |
 
@@ -189,8 +189,8 @@ $$P_t = P_{t-1}$$
 | Gesture Formulation | Action Triggered |
 | :--- | :--- |
 | Only Index finger extended | **Move Mouse Cursor** |
-| Pinch Thumb + Index finger | **Left Click** |
-| Pinch Thumb + Middle finger | **Right Click** |
+| Pinch Thumb + Index finger | **Left Click / Drag & Drop** |
+| Pinch Thumb + Pinky (Small finger) | **Right Click** |
 | Index + Middle fingers extended together | **Scroll Up / Down** |
 
 ---

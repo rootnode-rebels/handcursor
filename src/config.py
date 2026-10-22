@@ -1,5 +1,5 @@
 """
-Configuration parameters for AI Virtual Hand Cursor.
+Configuration parameters for Virtual Hand Cursor.
 All dimensions, thresholds, and behavior settings can be tuned here.
 """
 import os
@@ -43,8 +43,8 @@ MOUSE_SENSITIVITY = 2.4        # Movement multiplier for relative mode (effortle
 
 # Gesture Thresholds (in pixels for 640x480 frame)
 PINCH_THRESHOLD_CLICK = 38     # Thumb tip to Index tip distance to trigger Left Click
-PINCH_THRESHOLD_RIGHT = 38     # Thumb tip to Middle tip distance to trigger Right Click
-PINCH_THRESHOLD_RELEASE = 50   # Distance to release pinch state
+PINCH_THRESHOLD_RIGHT = 42     # Thumb tip to Pinky (small finger) tip distance to trigger Right Click
+PINCH_THRESHOLD_RELEASE = 55   # Distance to release pinch state
 SCROLL_THRESHOLD = 20          # Minimum finger movement to trigger scroll
 
 # Debounce & Cooldown Timers (in seconds)
