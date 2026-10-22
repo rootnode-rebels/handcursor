@@ -194,8 +194,8 @@ class DesktopAppWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Virtual Hand Cursor")
-        self.resize(440, 710)
-        self.setMinimumSize(380, 580)
+        self.resize(500, 750)
+        self.setMinimumSize(420, 620)
 
         # Window state
         self.is_pinned = True
@@ -320,9 +320,9 @@ class DesktopAppWindow(QtWidgets.QMainWindow):
         live_layout.setContentsMargins(4, 6, 4, 4)
         live_layout.setSpacing(8)
 
-        # Camera Preview Box
+        # Camera Preview Box (spacious 16:9 widescreen HD layout)
         self.video_box = QtWidgets.QLabel()
-        self.video_box.setFixedHeight(270)
+        self.video_box.setFixedHeight(290)
         self.video_box.setStyleSheet("background-color: #020617; border-radius: 10px; border: 1px solid #1e293b; color: #64748b; font-size: 12px;")
         self.video_box.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.video_box.setText("Camera is currently OFF\nClick 'Enable Camera' below to start")
@@ -455,10 +455,10 @@ class DesktopAppWindow(QtWidgets.QMainWindow):
         settings_layout.addWidget(self.combo_mode)
 
         # 1. Mouse Sensitivity / Speed (Air Mouse Mode)
-        self.lbl_sens = QtWidgets.QLabel(f"Air Mouse Sensitivity: {MOUSE_SENSITIVITY}x (Full Screen Reach)")
+        self.lbl_sens = QtWidgets.QLabel(f"Air Mouse Sensitivity: {MOUSE_SENSITIVITY}x (Balanced 1:1 Desktop Speed)")
         self.lbl_sens.setStyleSheet("font-size: 11px; font-weight: 600;")
         self.slider_sens = QtWidgets.QSlider(Qt.Orientation.Horizontal)
-        self.slider_sens.setRange(10, 60)
+        self.slider_sens.setRange(8, 40)
         self.slider_sens.setValue(int(MOUSE_SENSITIVITY * 10))
         self.slider_sens.valueChanged.connect(self.on_settings_changed)
         settings_layout.addWidget(self.lbl_sens)
@@ -498,7 +498,7 @@ class DesktopAppWindow(QtWidgets.QMainWindow):
         self.lbl_margin = QtWidgets.QLabel(f"Active Frame Size: {FRAME_WIDTH - 2*MARGIN_X}×{FRAME_HEIGHT - 2*MARGIN_Y} px (Margin: {MARGIN_X}px)")
         self.lbl_margin.setStyleSheet("font-size: 11px; font-weight: 600;")
         self.slider_margin = QtWidgets.QSlider(Qt.Orientation.Horizontal)
-        self.slider_margin.setRange(10, 90)
+        self.slider_margin.setRange(10, 150)
         self.slider_margin.setValue(MARGIN_X)
         self.slider_margin.valueChanged.connect(self.on_settings_changed)
         settings_layout.addWidget(self.lbl_margin)

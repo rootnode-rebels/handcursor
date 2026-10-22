@@ -86,8 +86,8 @@ class MouseController:
         self.curr_screen_x = float(self.prev_x)
         self.curr_screen_y = float(self.prev_y)
 
-        # 1 Euro Filter for camera input stabilization (eliminates sensor noise & landmark flutter)
-        self.input_filter = PointFilter2D(min_cutoff=1.0, beta=0.018, d_cutoff=1.0)
+        # 1 Euro Filter for camera input stabilization (snappy 0ms response, zero tremor)
+        self.input_filter = PointFilter2D(min_cutoff=2.2, beta=0.04, d_cutoff=1.0)
 
         # Debouncing, drag and stabilization timestamps
         self.last_left_click = 0.0
@@ -261,23 +261,29 @@ class MouseController:
             self.prev_hand_x = cam_x
             self.prev_hand_y = cam_y
 
-            dist_hand = math.hypot(dx, dy)
-            if dist_hand < 0.25:
+            # Normalize hand displacement relative to standard base resolution
+            res_scale_x = max(1.0, FRAME_WIDTH / 640.0)
+            res_scale_y = max(1.0, FRAME_HEIGHT / 480.0)
+            norm_dx = dx / res_scale_x
+            norm_dy = dy / res_scale_y
+            dist_hand = math.hypot(norm_dx, norm_dy)
+
+            if dist_hand < 0.2:
                 return (self.prev_x, self.prev_y)
 
-            # Continuous Precision & Acceleration Curve:
-            # Low speed (<2.0px): scale down to 0.65x for fine pixel precision
-            # Medium speed (2.0-10.0px): natural 1.0x-1.5x
-            # Fast speed (>10.0px): scale up to 3.2x for effortless full screen traversal
-            if dist_hand < 2.0:
-                speed_mult = 0.65 + (dist_hand / 2.0) * 0.35
-            elif dist_hand < 10.0:
-                speed_mult = 1.0 + ((dist_hand - 2.0) / 8.0) * 0.5
+            # Balanced, natural velocity curve (calm, controllable, 1:1 feel):
+            # Precision speed (< 2.5px): scale down to 0.75x for accurate button clicks
+            # Normal speed (2.5 - 12.0px): natural 1.0x to 1.35x 1:1 tracking
+            # Fast speed (> 12.0px): scale up to 1.85x for comfortable full-screen coverage
+            if dist_hand < 2.5:
+                speed_mult = 0.75 + (dist_hand / 2.5) * 0.25
+            elif dist_hand < 12.0:
+                speed_mult = 1.0 + ((dist_hand - 2.5) / 9.5) * 0.35
             else:
-                speed_mult = 1.5 + min(1.7, (dist_hand - 10.0) / 10.0)
+                speed_mult = 1.35 + min(0.5, (dist_hand - 12.0) / 12.0)
 
-            step_x = dx * self.sensitivity * speed_mult
-            step_y = dy * self.sensitivity * speed_mult
+            step_x = norm_dx * self.sensitivity * speed_mult
+            step_y = norm_dy * self.sensitivity * speed_mult
 
             # Float accumulation eliminates integer truncation jitter
             self.curr_screen_x += step_x
@@ -411,8 +417,8 @@ class MouseController:
                 return target_screen_pos, True
 
         else:
-            # Regular cursor movement (apply brief click-lock stabilization if just clicked/released)
-            if (current_time - self.last_click_event_time) < 0.15:
+            # Regular cursor movement (apply brief 60ms click-lock stabilization if just clicked/released)
+            if (current_time - self.last_click_event_time) < 0.06:
                 target_screen_pos = (self.prev_x, self.prev_y)
                 self.prev_hand_x = filtered_cam_x
                 self.prev_hand_y = filtered_cam_y

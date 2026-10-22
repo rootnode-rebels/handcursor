@@ -19,33 +19,33 @@ MODEL_URL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/han
 import cv2
 CAMERA_ID = 0
 CAMERA_BACKEND = cv2.CAP_DSHOW  # DirectShow backend for reliable Windows camera capture
-FRAME_WIDTH = 640
-FRAME_HEIGHT = 480
+FRAME_WIDTH = 1280              # Maximum HD 720p widescreen resolution for largest control area
+FRAME_HEIGHT = 720
 TARGET_FPS = 30
 
 # Screen Mapping & Bounding Box (Active Area)
 # Margins from camera frame edges (smaller margin = larger control frame area)
-MARGIN_X = 50
+MARGIN_X = 60
 MARGIN_Y = 40
 
 
 # Cursor Movement & Stabilization
 # Higher smoothing = smoother cursor; lower = more responsive
-SMOOTHING_FACTOR = 4
-DEADZONE_RADIUS = 8            # Pixels of involuntary hand jitter to ignore when hovering
-CLICK_FREEZE_TIME = 0.35       # Seconds to lock/freeze cursor position during and immediately after a click
+SMOOTHING_FACTOR = 3
+DEADZONE_RADIUS = 5            # Pixels of involuntary hand jitter to ignore when hovering
+CLICK_FREEZE_TIME = 0.20       # Seconds to lock/freeze cursor position during click
 
 # Navigation Mode:
 # 'relative' (Air Mouse / Touchpad): Keeps cursor in original position when hand appears, moves relative to it, reaches all corners easily.
 # 'absolute': Maps camera frame coordinates directly to screen pixels.
 CONTROL_MODE = "relative"
-MOUSE_SENSITIVITY = 2.4        # Movement multiplier for relative mode (effortless full screen coverage)
+MOUSE_SENSITIVITY = 1.6        # Balanced, natural 1:1 speed multiplier (eliminates over-fast / flying cursor)
 
-# Gesture Thresholds (in pixels for 640x480 frame)
-PINCH_THRESHOLD_CLICK = 38     # Thumb tip to Index tip distance to trigger Left Click
-PINCH_THRESHOLD_RIGHT = 42     # Thumb tip to Pinky (small finger) tip distance to trigger Right Click
-PINCH_THRESHOLD_RELEASE = 55   # Distance to release pinch state
-SCROLL_THRESHOLD = 20          # Minimum finger movement to trigger scroll
+# Gesture Thresholds (scaled for 1280x720 HD frame)
+PINCH_THRESHOLD_CLICK = 65     # Thumb tip to Index tip distance to trigger Left Click
+PINCH_THRESHOLD_RIGHT = 70     # Thumb tip to Pinky (small finger) tip distance to trigger Right Click
+PINCH_THRESHOLD_RELEASE = 90   # Distance to release pinch state
+SCROLL_THRESHOLD = 32          # Minimum finger movement to trigger scroll
 
 # Debounce & Cooldown Timers (in seconds)
 CLICK_COOLDOWN = 0.35

@@ -98,7 +98,7 @@ class GestureClassifier:
                     k_dx = cursor_knuckle[0] - self.dual_knuckle[0]
                     k_dy = cursor_knuckle[1] - self.dual_knuckle[1]
                     k_disp = math.hypot(k_dx, k_dy)
-                    if k_disp < 14.0:
+                    if k_disp < 24.0:
                         cursor_pos = self.dual_anchor
                     else:
                         cursor_pos = (int(round(self.dual_anchor[0] + k_dx)), int(round(self.dual_anchor[1] + k_dy)))
@@ -179,7 +179,8 @@ class GestureClassifier:
         # Pre-pinch stabilization: when index finger curls inward to pinch the thumb,
         # anchor the cursor to the target position so curling motion never displaces the cursor.
         # Knuckle displacement tracks real intentional whole-hand movement (e.g. dragging).
-        is_closing_pinch = (d_thumb_index <= 68.0 or d_thumb_pinky <= 68.0 or self.is_left_pinched or self.is_right_pinched)
+        pre_pinch_dist = PINCH_THRESHOLD_RELEASE + 20
+        is_closing_pinch = (d_thumb_index <= pre_pinch_dist or d_thumb_pinky <= pre_pinch_dist or self.is_left_pinched or self.is_right_pinched)
 
         if not is_closing_pinch or self.pinch_anchor is None or self.pinch_knuckle is None:
             self.pinch_anchor = raw_cursor
@@ -189,7 +190,7 @@ class GestureClassifier:
             k_dx = knuckle[0] - self.pinch_knuckle[0]
             k_dy = knuckle[1] - self.pinch_knuckle[1]
             k_disp = math.hypot(k_dx, k_dy)
-            if k_disp < 14.0:
+            if k_disp < 24.0:
                 cursor_pos = self.pinch_anchor
             else:
                 cursor_pos = (int(round(self.pinch_anchor[0] + k_dx)), int(round(self.pinch_anchor[1] + k_dy)))
