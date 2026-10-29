@@ -49,7 +49,7 @@ Traditional computer interaction relies fundamentally on physical hardware mice 
 - **Sterile & Touch-Free Environments**: In clinical settings, industrial workshops, kitchen counters, or presentation auditoriums, touching physical peripherals is either unhygienic or impractical.
 
 ### The Proposed Solution
-The **AI Virtual Hand Cursor** utilizes artificial intelligence, computer vision, and machine learning landmark estimation to establish a touch-free virtual mouse. Using an off-the-shelf built-in or USB webcam, the system:
+The **Virtual Hand Cursor** utilizes computer vision and hand landmark estimation to establish a touch-free virtual mouse. Using an off-the-shelf built-in or USB webcam, the system:
 1. Detects and tracks 21 three-dimensional hand landmarks at 30+ FPS.
 2. Isolates cursor guidance and mouse actions across dual hands or a single hand.
 3. Applies mathematical smoothing, deadzone filtering, and click-lock position freezing to eliminate hand tremors.
@@ -84,7 +84,7 @@ flowchart TD
         A["Webcam Capture (OpenCV DirectShow Backend)"] --> B["Horizontal Mirroring (cv2.flip)"]
     end
 
-    subgraph AI_Layer ["2. AI & Vision Processing"]
+    subgraph Vision_Layer ["2. Vision & Landmark Processing"]
         B --> C["MediaPipe HandLandmarker (XNNPACK CPU Delegate)"]
         C --> D["21 3D Landmark Extraction (x, y, z)"]
         D --> E["Handedness Classifier (Left vs Right Hand)"]
