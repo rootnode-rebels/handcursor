@@ -86,8 +86,13 @@ class MouseController:
         self.curr_screen_x = float(self.prev_x)
         self.curr_screen_y = float(self.prev_y)
 
-        # 1 Euro Filter for camera input stabilization (snappy 0ms response, zero tremor)
-        self.input_filter = PointFilter2D(min_cutoff=2.2, beta=0.04, d_cutoff=1.0)
+        # 1 Euro Filter for camera input stabilization (tuned for ultra-smooth jitter-free tracking)
+        self.input_filter = PointFilter2D(min_cutoff=1.0, beta=0.02, d_cutoff=1.0)
+
+        # Velocity tracking for smooth continuous acceleration
+        self.vel_x = 0.0
+        self.vel_y = 0.0
+        self.rel_deadzone = 0.40  # Normalized pixels deadzone to cancel hovering tremor
 
         # Debouncing, drag and stabilization timestamps
         self.last_left_click = 0.0
@@ -244,7 +249,7 @@ class MouseController:
             pyautogui.scroll(amount)
 
     def _update_position(self, cam_x: float, cam_y: float) -> Tuple[int, int]:
-        """Calculates and updates screen position with precision float accumulation and velocity curves."""
+        """Calculates and updates screen position with precision float accumulation, soft-knee deadzone, and velocity smoothing."""
         if self.control_mode == "relative":
             if self.prev_hand_x is None or self.prev_hand_y is None:
                 cur_x, cur_y = self.get_cursor_pos()
@@ -254,6 +259,8 @@ class MouseController:
                 self.prev_y = cur_y
                 self.prev_hand_x = cam_x
                 self.prev_hand_y = cam_y
+                self.vel_x = 0.0
+                self.vel_y = 0.0
                 return (cur_x, cur_y)
 
             dx = cam_x - self.prev_hand_x
@@ -268,26 +275,43 @@ class MouseController:
             norm_dy = dy / res_scale_y
             dist_hand = math.hypot(norm_dx, norm_dy)
 
-            if dist_hand < 0.2:
-                return (self.prev_x, self.prev_y)
-
-            # Balanced, natural velocity curve (calm, controllable, 1:1 feel):
-            # Precision speed (< 2.5px): scale down to 0.75x for accurate button clicks
-            # Normal speed (2.5 - 12.0px): natural 1.0x to 1.35x 1:1 tracking
-            # Fast speed (> 12.0px): scale up to 1.85x for comfortable full-screen coverage
-            if dist_hand < 2.5:
-                speed_mult = 0.75 + (dist_hand / 2.5) * 0.25
-            elif dist_hand < 12.0:
-                speed_mult = 1.0 + ((dist_hand - 2.5) / 9.5) * 0.35
+            # Soft-knee deadzone: completely eliminates hovering tremor while easing in motion smoothly
+            if dist_hand <= self.rel_deadzone:
+                self.vel_x *= 0.35
+                self.vel_y *= 0.35
+                if math.hypot(self.vel_x, self.vel_y) < 0.05:
+                    self.vel_x = 0.0
+                    self.vel_y = 0.0
+                    return (self.prev_x, self.prev_y)
+                target_step_x = 0.0
+                target_step_y = 0.0
             else:
-                speed_mult = 1.35 + min(0.5, (dist_hand - 12.0) / 12.0)
+                # Smoothstep transition over [rel_deadzone, rel_deadzone + 1.2]: zero sudden jump on start
+                t_ease = min(1.0, (dist_hand - self.rel_deadzone) / 1.2)
+                soft_gain = t_ease * t_ease * (3.0 - 2.0 * t_ease)
 
-            step_x = norm_dx * self.sensitivity * speed_mult
-            step_y = norm_dy * self.sensitivity * speed_mult
+                # Natural velocity curve (smooth, 1:1 control with comfortable speedup on sweeps)
+                if dist_hand < 3.0:
+                    speed_mult = 0.85 + (dist_hand / 3.0) * 0.20
+                elif dist_hand < 12.0:
+                    speed_mult = 1.05 + ((dist_hand - 3.0) / 9.0) * 0.35
+                else:
+                    speed_mult = 1.40 + min(0.45, (dist_hand - 12.0) / 12.0)
+
+                target_step_x = norm_dx * self.sensitivity * speed_mult * soft_gain
+                target_step_y = norm_dy * self.sensitivity * speed_mult * soft_gain
+
+            # Adaptive velocity smoothing: eliminates frame-to-frame delta flutter
+            smooth_blend = 1.0 / (1.0 + 0.12 * max(1, self.smoothing_factor))
+            if dist_hand > 10.0:
+                smooth_blend = min(0.95, smooth_blend + 0.25)
+
+            self.vel_x = smooth_blend * target_step_x + (1.0 - smooth_blend) * self.vel_x
+            self.vel_y = smooth_blend * target_step_y + (1.0 - smooth_blend) * self.vel_y
 
             # Float accumulation eliminates integer truncation jitter
-            self.curr_screen_x += step_x
-            self.curr_screen_y += step_y
+            self.curr_screen_x += self.vel_x
+            self.curr_screen_y += self.vel_y
 
             # Clamp strictly to full screen/virtual desktop bounds
             min_x = float(self.screen_x)
@@ -343,6 +367,8 @@ class MouseController:
             self.input_filter.reset()
             self.prev_hand_x = None
             self.prev_hand_y = None
+            self.vel_x = 0.0
+            self.vel_y = 0.0
             return (self.prev_x, self.prev_y), False
 
         # Filter raw camera coordinates through 1 Euro Filter
@@ -375,6 +401,8 @@ class MouseController:
                 target_screen_pos = (self.pinch_start_pos[0], self.pinch_start_pos[1])
                 self.prev_hand_x = filtered_cam_x
                 self.prev_hand_y = filtered_cam_y
+                self.vel_x = 0.0
+                self.vel_y = 0.0
             else:
                 # Dragging while holding button down (selecting text, dragging window)
                 target_screen_pos = self._update_position(filtered_cam_x, filtered_cam_y)
@@ -395,6 +423,8 @@ class MouseController:
             target_screen_pos = (self.prev_x, self.prev_y)
             self.prev_hand_x = filtered_cam_x
             self.prev_hand_y = filtered_cam_y
+            self.vel_x = 0.0
+            self.vel_y = 0.0
             if current_time - self.last_right_click > RIGHT_CLICK_COOLDOWN:
                 self.trigger_right_click()
                 self.last_right_click = current_time
