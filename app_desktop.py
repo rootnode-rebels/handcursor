@@ -397,32 +397,174 @@ class DesktopAppWindow(QtWidgets.QMainWindow):
         guide_card.setProperty("class", "card")
         guide_layout = QtWidgets.QVBoxLayout(guide_card)
         guide_layout.setContentsMargins(10, 8, 10, 8)
-        guide_layout.setSpacing(3)
+        guide_layout.setSpacing(4)
 
-        guide_title = QtWidgets.QLabel("Quick Controls:")
-        guide_title.setStyleSheet("font-size: 10px; font-weight: bold; color: #94a3b8; text-transform: uppercase;")
-        guide_layout.addWidget(guide_title)
+        guide_header = QtWidgets.QHBoxLayout()
+        guide_title = QtWidgets.QLabel("🖐️ HAND GESTURE CONTROLS:")
+        guide_title.setStyleSheet("font-size: 10px; font-weight: bold; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.5px;")
+        guide_header.addWidget(guide_title)
+        guide_header.addStretch()
 
-        r_move = QtWidgets.QLabel("• <b>Right Hand Index</b>: Point & move cursor smoothly")
+        btn_more_gestures = QtWidgets.QPushButton("📖 Full Guide")
+        btn_more_gestures.setFixedHeight(20)
+        btn_more_gestures.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_more_gestures.setStyleSheet("""
+            QPushButton {
+                background: #1e293b;
+                color: #38bdf8;
+                border: 1px solid #334155;
+                border-radius: 4px;
+                font-size: 9px;
+                font-weight: bold;
+                padding: 1px 6px;
+            }
+            QPushButton:hover { background: #0284c7; color: white; }
+        """)
+        btn_more_gestures.clicked.connect(lambda: self.tabs.setCurrentIndex(1))
+        guide_header.addWidget(btn_more_gestures)
+        guide_layout.addLayout(guide_header)
+
+        r_move = QtWidgets.QLabel("• <b>Right Hand Index Pointing</b>: Smooth Cursor Navigation")
         r_move.setStyleSheet("font-size: 11px; color: #4ade80;")
         guide_layout.addWidget(r_move)
 
-        l_click = QtWidgets.QLabel("• <b>Left Thumb + Index</b>: Left Click (Locks position)")
+        l_click = QtWidgets.QLabel("• <b>Left Thumb + Index Pinch</b>: Left Click | Hold to Drag & Select")
         l_click.setStyleSheet("font-size: 11px; color: #f472b6;")
         guide_layout.addWidget(l_click)
 
-        l_rclick = QtWidgets.QLabel("• <b>Left Thumb + Pinky (Small Finger)</b>: Right Click")
+        l_rclick = QtWidgets.QLabel("• <b>Left Thumb + Pinky (Small Finger) Pinch</b>: Right Click")
         l_rclick.setStyleSheet("font-size: 11px; color: #c084fc;")
         guide_layout.addWidget(l_rclick)
 
-        l_scroll = QtWidgets.QLabel("• <b>Left Index + Middle</b>: Scroll Up / Down")
-        l_scroll.setStyleSheet("font-size: 11px; color: #f59e0b;")
+        l_scroll = QtWidgets.QLabel("• <b>Left Index + Middle Fingers</b>: Glide Up / Down to Scroll")
+        l_scroll.setStyleSheet("font-size: 11px; color: #fbbf24;")
         guide_layout.addWidget(l_scroll)
+
+        single_hint = QtWidgets.QLabel("<i>*Single-Hand Fallback: If only 1 hand visible, it points & pinches directly!</i>")
+        single_hint.setStyleSheet("font-size: 9.5px; color: #94a3b8; padding-top: 2px;")
+        guide_layout.addWidget(single_hint)
 
         live_layout.addWidget(guide_card)
         self.tabs.addTab(tab_live, "Live Tracker")
 
-        # --- TAB 2: TUNING & SETTINGS ---
+        # --- TAB 2: COMPLETE GESTURES GUIDE ---
+        tab_guide = QtWidgets.QWidget()
+        guide_scroll = QtWidgets.QScrollArea()
+        guide_scroll.setWidgetResizable(True)
+        guide_scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+
+        guide_content = QtWidgets.QWidget()
+        full_guide_layout = QtWidgets.QVBoxLayout(guide_content)
+        full_guide_layout.setContentsMargins(8, 8, 8, 8)
+        full_guide_layout.setSpacing(10)
+
+        # Overview Header
+        h_box = QtWidgets.QFrame()
+        h_box.setStyleSheet("background-color: #131b2e; border: 1px solid #1e293b; border-radius: 8px; padding: 8px;")
+        h_box_layout = QtWidgets.QVBoxLayout(h_box)
+        h_box_layout.setSpacing(4)
+        h_title = QtWidgets.QLabel("🎯 How Hand Gesture Control Works")
+        h_title.setStyleSheet("font-size: 13px; font-weight: bold; color: #38bdf8;")
+        h_desc = QtWidgets.QLabel(
+            "The system detects 21 3D hand joints in real time. It is engineered with <b>Dual-Hand Separation</b> "
+            "so cursor navigation and clicks never interfere with each other, providing laser-pointer precision."
+        )
+        h_desc.setWordWrap(True)
+        h_desc.setStyleSheet("font-size: 11px; color: #cbd5e1; line-height: 1.3;")
+        h_box_layout.addWidget(h_title)
+        h_box_layout.addWidget(h_desc)
+        full_guide_layout.addWidget(h_box)
+
+        # Mode A: Dual-Hand Control
+        card_dual = QtWidgets.QFrame()
+        card_dual.setStyleSheet("background-color: #0f172a; border: 1px solid #1e293b; border-radius: 8px; padding: 10px;")
+        cd_layout = QtWidgets.QVBoxLayout(card_dual)
+        cd_layout.setSpacing(6)
+
+        cd_title = QtWidgets.QLabel("👑 Mode A: Dual-Hand Control (High Precision - Recommended)")
+        cd_title.setStyleSheet("font-size: 12px; font-weight: bold; color: #4ade80;")
+        cd_layout.addWidget(cd_title)
+
+        dual_items = [
+            ("🖱️ Right Hand (Pointer)", "Extend index finger and move in the air. The cursor tracks your hand smoothly across the desktop without jumping."),
+            ("👆 Left Click", "Pinch Left Thumb + Index finger (<65px). Cursor locks firmly in place on target button during click."),
+            ("✊ Drag & Drop / Select", "Pinch Left Thumb + Index and <b>hold</b> while moving Right Hand. Moves windows, selects text, or drags files."),
+            ("⚡ Right Click", "Pinch Left Thumb + <b>Pinky (Small Finger)</b> (<70px). Opens context menus. Pinky placement completely prevents left/right confusion!"),
+            ("📜 Bidirectional Scroll", "Raise Left Index + Middle fingers together and swipe vertically. Glide up to scroll up, glide down to scroll down.")
+        ]
+
+        for heading, text in dual_items:
+            item_box = QtWidgets.QWidget()
+            item_layout = QtWidgets.QVBoxLayout(item_box)
+            item_layout.setContentsMargins(4, 2, 4, 2)
+            item_layout.setSpacing(1)
+            lbl_h = QtWidgets.QLabel(heading)
+            lbl_h.setStyleSheet("font-size: 11px; font-weight: bold; color: #f8fafc;")
+            lbl_t = QtWidgets.QLabel(text)
+            lbl_t.setWordWrap(True)
+            lbl_t.setStyleSheet("font-size: 10.5px; color: #94a3b8;")
+            item_layout.addWidget(lbl_h)
+            item_layout.addWidget(lbl_t)
+            cd_layout.addWidget(item_box)
+
+        full_guide_layout.addWidget(card_dual)
+
+        # Mode B: Single-Hand Fallback
+        card_single = QtWidgets.QFrame()
+        card_single.setStyleSheet("background-color: #0f172a; border: 1px solid #1e293b; border-radius: 8px; padding: 10px;")
+        cs_layout = QtWidgets.QVBoxLayout(card_single)
+        cs_layout.setSpacing(6)
+
+        cs_title = QtWidgets.QLabel("✋ Mode B: Single-Hand Fallback (Automatic)")
+        cs_title.setStyleSheet("font-size: 12px; font-weight: bold; color: #38bdf8;")
+        cs_desc = QtWidgets.QLabel("Activates automatically when only one hand is in the camera view (e.g., holding a coffee mug with the other):")
+        cs_desc.setWordWrap(True)
+        cs_desc.setStyleSheet("font-size: 10.5px; color: #94a3b8;")
+        cs_layout.addWidget(cs_title)
+        cs_layout.addWidget(cs_desc)
+
+        single_items = [
+            ("• Move Cursor", "Only index finger extended pointing."),
+            ("• Left Click / Drag", "Pinch Thumb + Index finger. Knuckle-anchor locks cursor on button so finger curl never displaces target."),
+            ("• Right Click", "Pinch Thumb + Pinky (Small finger)."),
+            ("• Scroll", "Extend Index + Middle fingers together and swipe up/down.")
+        ]
+        for h, t in single_items:
+            row = QtWidgets.QLabel(f"<b>{h}</b>: {t}")
+            row.setWordWrap(True)
+            row.setStyleSheet("font-size: 10.5px; color: #cbd5e1;")
+            cs_layout.addWidget(row)
+
+        full_guide_layout.addWidget(card_single)
+
+        # Pro Tips Card
+        card_tips = QtWidgets.QFrame()
+        card_tips.setStyleSheet("background-color: #131b2e; border: 1px solid #1e293b; border-radius: 8px; padding: 10px;")
+        ct_layout = QtWidgets.QVBoxLayout(card_tips)
+        ct_layout.setSpacing(4)
+        ct_title = QtWidgets.QLabel("💡 Pro-Tips for Best Results:")
+        ct_title.setStyleSheet("font-size: 11px; font-weight: bold; color: #fbbf24;")
+        t1 = QtWidgets.QLabel("1. <b>Pause Anytime</b>: Hit <b>[Spacebar]</b> on keyboard to pause cursor tracking whenever you want to type.")
+        t1.setStyleSheet("font-size: 10.5px; color: #cbd5e1;")
+        t2 = QtWidgets.QLabel("2. <b>Optimal Distance</b>: Keep your hands 1.5 to 3 feet in front of your camera.")
+        t2.setStyleSheet("font-size: 10.5px; color: #cbd5e1;")
+        t3 = QtWidgets.QLabel("3. <b>Lighting</b>: Normal indoor lighting works best. Avoid sitting directly against bright backlights.")
+        t3.setStyleSheet("font-size: 10.5px; color: #cbd5e1;")
+        ct_layout.addWidget(ct_title)
+        ct_layout.addWidget(t1)
+        ct_layout.addWidget(t2)
+        ct_layout.addWidget(t3)
+        full_guide_layout.addWidget(card_tips)
+
+        full_guide_layout.addStretch()
+        guide_scroll.setWidget(guide_content)
+
+        tab_guide_layout = QtWidgets.QVBoxLayout(tab_guide)
+        tab_guide_layout.setContentsMargins(0, 0, 0, 0)
+        tab_guide_layout.addWidget(guide_scroll)
+        self.tabs.addTab(tab_guide, "Gesture Guide")
+
+        # --- TAB 3: TUNING & SETTINGS ---
         tab_settings = QtWidgets.QWidget()
         settings_layout = QtWidgets.QVBoxLayout(tab_settings)
         settings_layout.setContentsMargins(10, 10, 10, 10)
