@@ -37,9 +37,11 @@ build/
 
 # PDFs & Report Generators (Saved for Google Drive)
 *.pdf
+*.docx
 generate_report_pdf.py
 build_complete_guide_pdf.py
 build_academic_report_30p.py
+build_academic_report_docx.py
 
 # Environment & IDE
 .env
