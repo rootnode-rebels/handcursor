@@ -49,3 +49,6 @@ build_academic_report_docx.py
 .vscode/
 .idea/
 *.swp
+
+figures/
+generate_report_figures.py
