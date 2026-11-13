@@ -1,24 +1,24 @@
-# Virtual Hand Cursor Using Hand Gesture Recognition
+# ✋ Virtual Hand Cursor — Beginner-Friendly Project Guide
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
-[![MediaPipe](https://img.shields.io/badge/MediaPipe-Tasks%20Vision-orange.svg)](https://developers.google.com/mediapipe)
+[![MediaPipe](https://img.shields.io/badge/MediaPipe-Hand%20Tracking-orange.svg)](https://developers.google.com/mediapipe)
 [![OpenCV](https://img.shields.io/badge/OpenCV-Computer%20Vision-green.svg)](https://opencv.org/)
 [![PyQt6](https://img.shields.io/badge/GUI-PyQt6-purple.svg)](https://riverbankcomputing.com/software/pyqt/)
 [![Platform](https://img.shields.io/badge/Platform-Windows-lightgrey.svg)](https://microsoft.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-An advanced, touch-free Human-Computer Interaction (HCI) system that transforms live webcam hand gestures into operating system mouse navigation, left-clicks, right-clicks, and bidirectional scrolling across all desktop applications, web browsers, and document viewers.
+An easy-to-use computer program that turns your normal webcam into an invisible mouse in the air. By moving your hand in front of the camera, you can move your computer cursor, click icons, drag files, right-click, and scroll through pages without touching any physical mouse!
 
 ---
 
-## 🎓 Academic Project Information
+## 🎓 Academic Project Details
 
-- **Project Type**: Bachelor of Computer Applications (BCA) Mini Project
-- **Institution**: Vidyavahini First Grade & P.G. College, Tumakuru
-- **Affiliation**: Affiliated to Tumkur University
+- **Project Type**: Bachelor of Computer Applications (BCA) Project
+- **College**: Vidyavahini First Grade & P.G. College, Tumakuru
+- **University**: Affiliated to Tumkur University
 - **Department**: Department of Computer Applications
 - **Project Guide**: **Navyashree S**, Department of Computer Science
-- **Team Members**:
+- **Student Team**:
   1. **Ananya M P** (Reg. No: `U11VU24S0036`)
   2. **Bhoomika** (Reg. No: `U11VU24S0349`)
   3. **Manasa K S** (Reg. No: `U11VU24S0070`)
@@ -27,269 +27,221 @@ An advanced, touch-free Human-Computer Interaction (HCI) system that transforms 
 ---
 
 ## 📌 Table of Contents
-1. [Overview & Problem Statement](#-overview--problem-statement)
-2. [Key Innovations & Technical Features](#-key-innovations--technical-features)
-3. [System Architecture](#-system-architecture)
-4. [The 7 Core Modules](#-the-7-core-modules)
-5. [Mathematical Models & Algorithms](#-mathematical-models--algorithms)
-6. [Gesture Mapping & Control Schema](#-gesture-mapping--control-schema)
-7. [Directory Structure](#-directory-structure)
-8. [Installation & Execution](#-installation--execution)
-9. [Configuration & Tuning](#-configuration--tuning)
-10. [Automated Testing & Verification](#-automated-testing--verification)
+1. [What is This Project? (The Simple Idea)](#-what-is-this-project-the-simple-idea)
+2. [What is a "Module" in Python? (For Beginners)](#-what-is-a-module-in-python-for-beginners)
+3. [The Tools We Used (Tech Stack Made Simple)](#-the-tools-we-used-tech-stack-made-simple)
+4. [How It Works Step-by-Step (The Workflow)](#-how-it-works-step-by-step-the-workflow)
+5. [How to Control the Mouse (Hand Gestures)](#-how-to-control-the-mouse-hand-gestures)
+6. [The 7 Project Files Explained](#-the-7-project-files-explained)
+7. [Simple Math Behind the Gestures](#-simple-math-behind-the-gestures)
+8. [How to Download and Run It](#-how-to-download-and-run-it)
+9. [Frequently Asked Questions (FAQ)](#-frequently-asked-questions-faq)
 
 ---
 
-## 📖 Overview & Problem Statement
+## 🌟 What is This Project? (The Simple Idea)
 
-### The Problem
-Traditional computer interaction relies fundamentally on physical hardware mice and trackpads. While effective, this creates multiple challenges:
-- **Repetitive Strain & Physical Contact**: Continuous physical gripping can lead to strain, fatigue, or carpal tunnel issues.
-- **Hardware Failure & Maintenance**: Physical switches degrade, cables fray, and sensor trackballs/optics require flat surfaces.
-- **Sterile & Touch-Free Environments**: In clinical settings, industrial workshops, kitchen counters, or presentation auditoriums, touching physical peripherals is either unhygienic or impractical.
+Usually, to move the mouse arrow on a computer screen, you have to hold a plastic mouse with your hand or slide your finger on a laptop touchpad.
 
-### The Proposed Solution
-The **Virtual Hand Cursor** utilizes computer vision and hand landmark estimation to establish a touch-free virtual mouse. Using an off-the-shelf built-in or USB webcam, the system:
-1. Detects and tracks 21 three-dimensional hand landmarks at 30+ FPS.
-2. Isolates cursor guidance and mouse actions across dual hands or a single hand.
-3. Applies mathematical smoothing, deadzone filtering, and click-lock position freezing to eliminate hand tremors.
-4. Directly interfaces with the Windows OS kernel to move the cursor, click buttons, and scroll windows across any software.
+**Our Virtual Hand Cursor does this completely touch-free:**
+- You sit in front of your laptop or desktop webcam.
+- You raise your hand in the air.
+- When you move your index finger, the mouse arrow on your screen follows your finger smoothly like a laser pointer!
+- When you pinch your thumb and index finger together, it performs a **Left Click**.
+- When you pinch your thumb and pinky (small finger) together, it performs a **Right Click**.
+- When you raise two fingers and glide up or down, it **Scrolls** the page.
 
----
-
-## ⚡ Key Innovations & Technical Features
-
-- **Dual-Hand Isolation Architecture (Zero Click-Jitter)**:
-  - **Right Hand**: Directs pointer trajectory with the index fingertip.
-  - **Left Hand**: Triggers discrete actions (Left Click, Right Click, Scroll Up/Down).
-  - *Advantage*: Eliminates the involuntary mouse pointer jerk that occurs when pinching fingers on the same hand!
-- **Click-Lock Position Freezing**:
-  - The moment a pinch gesture is detected, cursor coordinates are locked at the target position for $0.35\text{s}$, preventing button target drift.
-- **Adaptive Deadzone Tremor Filter**:
-  - Distinguishes between intentional slow hovering and involuntary human hand tremor ($< 8\text{px}$ deadzone).
-- **Native Windows Kernel Integration**:
-  - Built with native Windows `User32` APIs (`SetCursorPos`, `mouse_event`) with Per-Monitor High-DPI awareness for zero-latency, full-desktop response.
-- **Privacy-First Camera Management**:
-  - Camera is **OFF** by default. Only activates upon explicit user action and releases hardware instantly when stopped.
-- **Standalone Distribution**:
-  - Packaged into a self-contained executable ([`HandCursor_Standalone.exe`](HandCursor_Standalone.exe)) requiring no Python installation.
+### Real-World Uses:
+1. **Cooking in the Kitchen**: Scroll through a recipe on your laptop without touching the screen with flour or oil on your fingers.
+2. **Presentations**: Stand 5 feet away from your screen and control slides by pointing in the air.
+3. **Clean Environments (Hospitals & Clinics)**: Doctors and dentists can view X-rays without touching unsterilized computer surfaces.
+4. **Accessibility**: Useful for people who have difficulty gripping physical mice.
 
 ---
 
-## 🏗️ System Architecture
+## 💡 What is a "Module" in Python? (For Beginners)
 
-```mermaid
-flowchart TD
-    subgraph Input_Layer ["1. Video Input Layer"]
-        A["Webcam Capture (OpenCV DirectShow Backend)"] --> B["Horizontal Mirroring (cv2.flip)"]
-    end
+If you are new to programming, you will see the word **"module"** a lot. Here is what it means in simple English:
 
-    subgraph Vision_Layer ["2. Vision & Landmark Processing"]
-        B --> C["MediaPipe HandLandmarker (XNNPACK CPU Delegate)"]
-        C --> D["21 3D Landmark Extraction (x, y, z)"]
-        D --> E["Handedness Classifier (Left vs Right Hand)"]
-    end
+> 📘 **Simple Definition**:
+> A **module** in Python is simply a single file containing Python code (a file that ends in `.py`).
+>
+> **Everyday Analogy**:
+> Imagine you are building a toy car using Lego blocks:
+> - You have one box for the wheels.
+> - You have one box for the engine.
+> - You have one box for the steering.
+>
+> In Python, instead of writing 3,000 lines of messy code inside one giant file, we divide the work into smaller, clean files called **modules**.
+> - One module connects to the camera (`hand_detector.py`).
+> - One module decides what gesture you made (`gesture_classifier.py`).
+> - One module actually moves the Windows mouse cursor (`mouse_controller.py`).
+>
+> You can easily share and reuse code between files using the simple word: `import`.
 
-    subgraph Processing_Layer ["3. Signal Processing & Recognition"]
-        E --> F["Gesture Classifier (Finger Extension & Pinch Distances)"]
-        D --> G["Coordinate Mapping (Active Bounding Box to Screen)"]
-        G --> H["Deadzone Filter & Adaptive EMA Smoothing"]
-        F --> I["Click-Lock Position Coordinator"]
-    end
+---
 
-    subgraph Execution_Layer ["4. Action & Visual Output"]
-        H --> J["Virtual Mouse Controller (Win32 User32 & PyAutoGUI)"]
-        I --> J
-        J --> K["Windows OS Kernel (Global Cursor, Clicks, Scrolling)"]
-        F --> L["Visualizer HUD Overlay (Skeletons, Badges, FPS)"]
-        L --> M["PyQt6 Desktop GUI / OpenCV Display Window"]
-    end
+## 🛠️ The Tools We Used (Tech Stack Made Simple)
+
+We built this project using standard, reliable tools:
+
+| Tool Name | What It Is in Plain English | What Job It Does Here |
+| :--- | :--- | :--- |
+| **Python** | The main programming language. | The central coordinator that links the camera, the math, and the mouse. |
+| **OpenCV (`cv2`)** | Computer vision software (the computer's "eyes"). | Captures video frames from your webcam at 30 pictures per second and flips the image like a mirror. |
+| **Google MediaPipe** | Hand tracking software created by Google. | Looks at each video frame and instantly finds 21 joint points on your hand (fingertips, knuckles, and wrist). |
+| **PyQt6** | Modern desktop window toolkit. | Creates the clean dark-mode app window, the buttons, the camera preview, and the live status indicators. |
+| **Windows API (`ctypes.user32`)** | Direct link into the Windows operating system. | Moves the actual Windows cursor and sends clicks with zero delay. |
+| **1 Euro Filter** | A smart smoothing formula. | Eliminates tiny, involuntary hand shakes when you hover over small buttons. |
+
+---
+
+## 🔄 How It Works Step-by-Step (The Workflow)
+
+Every single second, your computer repeats these **8 simple steps** 30 times:
+
+```
+[Webcam] ➡️ [Mirror Flip] ➡️ [Find 21 Hand Points] ➡️ [Filter Out Tremor]
+                                                            ⬇️
+[Click / Scroll] ⬅️ [Prevent Drift] ⬅️ [Check Gesture] ⬅️ [Map to Screen]
 ```
 
----
-
-## 🧩 The 7 Core Modules
-
-Following the specifications in Section 5 of the project synopsis:
-
-### Module 1: Video Capture (`cv2.VideoCapture`)
-Captures real-time frames from the camera. Uses the Windows DirectShow backend (`cv2.CAP_DSHOW`) to avoid Media Foundation (MSMF) deadlocks and ensure consistent frame acquisition at 640×480 resolution at 30 FPS.
-
-### Module 2: Hand Detection (`mediapipe.tasks.vision.HandLandmarker`)
-Detects single or dual hands simultaneously using deep convolutional networks optimized with TensorFlow Lite XNNPACK delegates for low CPU overhead.
-
-### Module 3: Hand Landmark Tracking
-Extracts 21 spatial landmarks per hand, capturing precise fingertip points (Thumb: 4, Index: 8, Middle: 12, Ring: 16, Pinky: 20) and interphalangeal joints.
-
-### Module 4: Gesture Recognition (`src/gesture_classifier.py`)
-A finite-state gesture engine determining:
-- Finger extension status: $y_{tip} < y_{pip}$
-- Relative pinch distance between thumb and finger tips.
-- Discrete gesture outputs: `MOVE`, `LEFT_CLICK`, `RIGHT_CLICK`, `SCROLL_UP`, `SCROLL_DOWN`, and `IDLE`.
-
-### Module 5: Cursor Control (`src/mouse_controller.py`)
-Projects coordinates from the calibrated camera active bounding box ($100\text{px}$ margin) to the full screen resolution ($1920 \times 1080$), applying mathematical smoothing to eliminate jitter.
-
-### Module 6: Mouse Action Control
-Dispatches hardware mouse events into the operating system:
-- **Left Click**: Dispatches `MOUSEEVENTF_LEFTDOWN` followed by `MOUSEEVENTF_LEFTUP`.
-- **Right Click**: Dispatches `MOUSEEVENTF_RIGHTDOWN` followed by `MOUSEEVENTF_RIGHTUP`.
-- **Scroll**: Dispatches `MOUSEEVENTF_WHEEL` with direction and step magnitude.
-- Cooldown timers prevent unintended double-click spam.
-
-### Module 7: Visual Feedback (`src/visualizer.py` & `app_desktop.py`)
-Draws visual feedback directly onto the video feed:
-- 21-node bone skeleton and joint nodes.
-- Golden-ratio active tracking bounding box.
-- Dynamic color-coded action banners with real-time FPS counter.
-- Independent status badges for Right Hand and Left Hand tracking.
+1. **Step 1: Video Capture**: The webcam takes a live photo 30 times a second.
+2. **Step 2: Mirror Flip**: Webcams reverse your image. We flip it horizontally so when you move your hand to the right, your cursor moves to the right.
+3. **Step 3: Finding Hand Points**: MediaPipe scans the image and marks 21 dots on your hand (wrist, knuckles, and fingertips).
+4. **Step 4: Tremor Filtering**: Human hands naturally shake slightly in the air. The 1 Euro Filter algorithm locks the cursor still when you hover.
+5. **Step 5: Screen Mapping**: If your hand moves 50% across the camera picture, the cursor is placed 50% across your computer monitor.
+6. **Step 6: Gesture Recognition**: The computer checks which fingers are up and measures how close your fingertips are to your thumb.
+7. **Step 7: Pre-Pinch Drift Prevention**: When humans pinch to click, the index finger curls slightly. The computer freezes the cursor right before the click hits, so you never miss your target button!
+8. **Step 8: Mouse Action**: Windows receives the signal and performs the move, left-click, right-click, or scroll.
 
 ---
 
-## 📐 Mathematical Models & Algorithms
+## 🖐️ How to Control the Mouse (Hand Gestures)
 
-### 1. Pinch Distance Calculation (Euclidean Metric)
-Pinch detection calculates the Euclidean distance between fingertip $A(x_1, y_1)$ and fingertip $B(x_2, y_2)$ in pixel space:
-$$d(A, B) = \sqrt{(x_2 - x_1)^2 + (y_2 - y_1)^2}$$
-- **Left Click Trigger**: $d(\text{Thumb Tip}_4, \text{Index Tip}_8) < 38\text{px}$
-- **Right Click Trigger**: $d(\text{Thumb Tip}_4, \text{Pinky Tip}_{20}) < 42\text{px}$ (uses small finger to completely eliminate index/middle finger confusion)
+The software supports two modes: **Dual-Hand Mode** (recommended for best control) and **Single-Hand Fallback** (if only 1 hand is visible).
 
-### 2. Coordinate Linear Interpolation
-Maps camera coordinates $(C_x, C_y)$ within active margins $[M_x, W - M_x]$ to monitor resolution $[0, S_w]$:
-$$S_x = \frac{C_x - M_x}{(W - 2M_x)} \times S_{\text{width}}$$
-$$S_y = \frac{C_y - M_y}{(H - 2M_y)} \times S_{\text{height}}$$
+### 👑 Mode A: Dual-Hand Control (High Precision)
+In Dual-Hand mode, your **Right Hand** is the pointer, and your **Left Hand** is the clicker:
 
-### 3. Speed-Adaptive Exponential Moving Average (EMA) Smoothing
-Filters out natural hand micro-tremors without introducing lag:
-$$P_t = P_{t-1} + \frac{S_t - P_{t-1}}{\alpha}$$
-Where:
-- $\alpha = 3$ (Low smoothing) when velocity $> 60\text{px}$ (Snappy crossing).
-- $\alpha = 7$ (High smoothing) when velocity $< 20\text{px}$ (Precision landing on small buttons).
-
-### 4. Deadzone Tremor Cancellation
-If displacement $\Delta = \sqrt{(S_x - P_{x, t-1})^2 + (S_y - P_{y, t-1})^2} < 8\text{px}$, the cursor position is held invariant:
-$$P_t = P_{t-1}$$
-
----
-
-## 🖐️ Gesture Mapping & Control Schema
-
-### Mode A: Dual-Hand Control (Recommended for Precision)
-
-| Hand | Gesture Formulation | Action Triggered |
-| :--- | :--- | :--- |
-| **Right Hand** | Index finger extended pointing | **Move Mouse Cursor** |
-| **Left Hand** | Pinch Thumb (4) + Index (8) | **Left Click / Drag & Drop** (Locks position on start) |
-| **Left Hand** | Pinch Thumb (4) + Pinky / Small finger (20) | **Right Click** (Context Menu) |
-| **Left Hand** | Index & Middle fingers extended (Swipe Up/Down) | **Scroll Webpage / Document** |
-| **Left Hand** | Neutral Open Palm or Rest | **Free Movement / No Clicks** |
-
-### Mode B: Single-Hand Fallback (Automatic)
-
-| Gesture Formulation | Action Triggered |
+| What to Do with Your Hand | What Happens on Your Computer |
 | :--- | :--- |
-| Only Index finger extended | **Move Mouse Cursor** |
-| Pinch Thumb + Index finger | **Left Click / Drag & Drop** |
-| Pinch Thumb + Pinky (Small finger) | **Right Click** |
-| Index + Middle fingers extended together | **Scroll Up / Down** |
+| **Right Hand**: Extend index finger and point in the air. | **Moves the Cursor** smoothly across your screen. |
+| **Left Hand**: Pinch **Thumb + Index finger** together. | **Left Click** (Selects an icon or button). |
+| **Left Hand**: Pinch **Thumb + Index** and **hold** it while moving Right Hand. | **Drag & Drop** (Select text, move desktop icons, or drag windows). |
+| **Left Hand**: Pinch **Thumb + Pinky (Small finger)** together. | **Right Click** (Opens right-click context menu). |
+| **Left Hand**: Raise **Index + Middle fingers** together and swipe up/down. | **Scroll Wheel** (Scrolls web pages, PDFs, and spreadsheets). |
+
+> 💡 **Why Pinky for Right Click?**  
+> The index and middle fingers sit right next to each other, making them easy to confuse. The pinky finger is on the far opposite side of the hand, which completely prevents accidental clicks!
 
 ---
 
-## 📁 Directory Structure
+### ✋ Mode B: Single-Hand Fallback (Automatic)
+If you are holding a cup of coffee with one hand, you can use just one hand for everything:
+
+| Gesture | Action |
+| :--- | :--- |
+| Point with index finger | **Moves the cursor** |
+| Pinch Thumb + Index finger | **Left Click** (Hold to drag) |
+| Pinch Thumb + Pinky (Small finger) | **Right Click** |
+| Raise Index + Middle fingers together and swipe | **Scroll Up / Down** |
+
+---
+
+## 📁 The 7 Project Files Explained
+
+Here is where everything lives in the folder:
 
 ```
 hand cursor/
-├── HandCursor_Standalone.exe    # 100% self-contained standalone executable (No Python needed)
-├── main.py                     # Primary desktop application entry point
-├── app_desktop.py              # PyQt6 Modern Dark Desktop GUI application
-├── app.py                      # Flask web browser dashboard alternative
-├── run_floating.py             # Always-on-top draggable floating HUD launcher
-├── requirements.txt            # Python dependencies (opencv, mediapipe, pyautogui, PyQt6)
-├── hand_landmarker.task        # MediaPipe 21-point hand landmark machine learning model
-├── Synapsis.pdf                # Original college project synopsis document
-├── src/
-│   ├── __init__.py
-│   ├── config.py               # Tunable camera, smoothing, margin, and threshold parameters
-│   ├── hand_detector.py        # MediaPipe Tasks Vision hand detector & geometry helpers
-│   ├── gesture_classifier.py   # State machine for dual-hand and single-hand gesture recognition
-│   ├── mouse_controller.py     # Win32 kernel cursor engine, click-lock, and deadzone filter
-│   └── visualizer.py           # Real-time HUD skeleton overlay, reticles, and status banners
-└── tests/
-    └── test_modules.py         # Automated unit test suite verifying all 7 modules
+├── HandCursor_Standalone.exe    # The ready-to-run app (Double-click to start, no Python needed!)
+├── main.py                     # Starts the whole program
+├── app_desktop.py              # Draws the desktop window and buttons
+├── requirements.txt            # List of Python tools needed
+├── hand_landmarker.task        # Google's hand-finding brain file
+└── src/                        # Folder containing our 5 helper modules
+    ├── config.py               # Holds settings (camera size, speed, click distance)
+    ├── hand_detector.py        # Uses MediaPipe to find 21 hand points
+    ├── gesture_classifier.py   # Decides if you are pointing, clicking, or scrolling
+    ├── filter.py               # Removes hand shaking (1 Euro Filter)
+    ├── mouse_controller.py     # Sends click and move commands to Windows
+    └── visualizer.py           # Draws the hand skeleton and boxes on screen
 ```
 
 ---
 
-## 🚀 Installation & Execution
+## 📐 Simple Math Behind the Gestures
 
-### Option 1: Standalone Windows Executable (No Python Required)
-Double-click:
-👉 **[`HandCursor_Standalone.exe`](HandCursor_Standalone.exe)**
-*Runs instantly on any Windows 10/11 PC without installing Python or libraries.*
+You do not need to be a math genius to understand how the computer measures your hand:
 
-### Option 2: Run from Python Source
-1. **Clone repository**:
-   ```bash
-   git clone https://github.com/rootnode-rebels/handcursor.git
-   cd handcursor
-   ```
-2. **Install dependencies**:
+1. **Measuring Pinch Distance (Straight-Line Distance)**:
+   - The computer knows the (X, Y) pixel position of your thumb tip and your index fingertip.
+   - It calculates the straight line distance between them using simple high-school geometry (Pythagorean Theorem):
+     $$\text{Distance} = \sqrt{(X_2 - X_1)^2 + (Y_2 - Y_1)^2}$$
+   - When this distance becomes smaller than 65 pixels, the computer registers that your fingers are touching and triggers a **Click**!
+
+2. **Screen Mapping (Percentages)**:
+   - If your camera picture is 1280 pixels wide and your monitor is 1920 pixels wide, the computer converts the position:
+     $$\text{Screen X} = \frac{\text{Camera X}}{\text{Camera Width}} \times \text{Monitor Width}$$
+   - Halfway across the camera = halfway across your computer screen!
+
+3. **Two-Door Lock (Hysteresis)**:
+   - To make sure your cursor doesn't click 10 times by accident if your hand twitches, we use a two-door rule:
+     - You must close your fingers below **65 pixels** to start a click.
+     - You must open your fingers wider than **90 pixels** to let go.
+
+---
+
+## 🚀 How to Download and Run It
+
+### Method 1: The Easiest Way (Double-Click `.exe`)
+You don't need Python or any coding software:
+1. Double-click **[`HandCursor_Standalone.exe`](HandCursor_Standalone.exe)** in the project folder.
+2. The dark-mode window will open.
+3. Click **"🎥 Enable Camera"**.
+4. Raise your hand and start pointing!
+
+---
+
+### Method 2: Running with Python (For Programmers)
+If you have Python installed:
+1. Open your terminal in this project folder.
+2. Install the required tools:
    ```bash
    pip install -r requirements.txt
    ```
-3. **Launch Desktop Application**:
+3. Run the application:
    ```bash
    python main.py
    ```
-
-### Keyboard Shortcuts
-- **`Spacebar`**: Instantly Pause or Resume mouse cursor tracking.
-- **`P`**: Toggle Always-on-Top Pinned mode.
-- **`C`**: Turn Camera On / Off.
-
----
-
-## ⚙️ Configuration & Tuning (`src/config.py`)
-
-All tracking thresholds and sensitivities can be adjusted in `src/config.py` or via the **"Tuning & Preferences"** tab in the desktop application:
-
-```python
-# Active Interaction Bounding Box Margins (Pixels)
-MARGIN_X = 100
-MARGIN_Y = 80
-
-# Stabilization & Smoothing
-SMOOTHING_FACTOR = 4     # Higher = smoother; Lower = faster
-DEADZONE_RADIUS = 8      # Tremor suppression radius (pixels)
-CLICK_FREEZE_TIME = 0.35 # Position lock duration during click (seconds)
-
-# Pinch Sensitivities
-PINCH_THRESHOLD_CLICK = 38
-PINCH_THRESHOLD_RIGHT = 38
-```
+4. Run the automated test suite (verifies everything works):
+   ```bash
+   python -m unittest discover tests
+   ```
 
 ---
 
-## 🧪 Automated Testing & Verification
+## ⌨️ Helpful Keyboard Shortcuts
 
-The project includes an automated test suite verifying all 7 system modules:
-```bash
-python -m unittest discover tests
-```
+- **`[Spacebar]`**: Instantly pause or resume mouse movement (useful when you want to rest your hand or type on your keyboard).
+- **`[P]`**: Pin window so it stays on top of other apps.
+- **`[C]`**: Turn the camera On or Off.
 
-### Test Suite Results:
-- `test_hand_detector_blank_frame`: ✅ PASSED (Handles empty/null camera frames safely)
-- `test_mouse_coordinate_mapping`: ✅ PASSED (Boundary projection and deadzone convergence verified)
-- `test_gesture_classifier_no_hands`: ✅ PASSED (IDLE safety state verified)
-- `test_dual_hand_left_click`: ✅ PASSED (Accurately triggers Left Click on left pinch)
-- `test_dual_hand_right_click`: ✅ PASSED (Accurately triggers Right Click on middle pinch)
-- `test_dual_hand_scroll`: ✅ PASSED (Vertical multi-finger displacement triggers scroll events)
-- `test_mouse_actions_execution`: ✅ PASSED (Simulates click and scroll OS dispatches)
-- `test_visualizer_renders_without_crash`: ✅ PASSED (HUD overlays render smoothly)
+---
 
-**Result**: 8/8 Tests Passed (100% Success).
+## ❓ Frequently Asked Questions (FAQ)
+
+**Q1: Does this app send my webcam video to the internet?**  
+**No.** 100% of the image processing happens directly on your own computer processor (CPU). No photos, videos, or personal data are ever saved or sent anywhere.
+
+**Q2: Will it work with my laptop's built-in camera?**  
+**Yes.** Any normal built-in webcam or USB plug-in camera works automatically.
+
+**Q3: Can I reach all 4 corners of my computer screen?**  
+**Yes.** We tuned the active frame and added Windows High-DPI support so the cursor easily reaches the top-left, top-right, bottom-left, and bottom-right corners without straining your arm.
 
 ---
 
 ## 📜 License
-This project is open-source and available under the [MIT License](LICENSE).
+This project is open-source under the [MIT License](LICENSE).
