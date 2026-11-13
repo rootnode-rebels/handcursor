@@ -173,23 +173,63 @@ hand cursor/
 
 ## 📐 Simple Math Behind the Gestures
 
-You do not need to be a math genius to understand how the computer measures your hand:
+You do not need to be a math genius to understand how the computer measures your hand. Here are the simple formulas explained step-by-step:
 
-1. **Measuring Pinch Distance (Straight-Line Distance)**:
-   - The computer knows the (X, Y) pixel position of your thumb tip and your index fingertip.
-   - It calculates the straight line distance between them using simple high-school geometry (Pythagorean Theorem):
-     $$\text{Distance} = \sqrt{(X_2 - X_1)^2 + (Y_2 - Y_1)^2}$$
-   - When this distance becomes smaller than 65 pixels, the computer registers that your fingers are touching and triggers a **Click**!
+### 1. Measuring Pinch Distance (Straight-Line Distance)
+How does the computer know when two fingers touch? It uses the simple high-school Pythagorean theorem.
 
-2. **Screen Mapping (Percentages)**:
-   - If your camera picture is 1280 pixels wide and your monitor is 1920 pixels wide, the computer converts the position:
-     $$\text{Screen X} = \frac{\text{Camera X}}{\text{Camera Width}} \times \text{Monitor Width}$$
-   - Halfway across the camera = halfway across your computer screen!
+If your thumb tip is at $(X_1, Y_1)$ and your index tip is at $(X_2, Y_2)$:
 
-3. **Two-Door Lock (Hysteresis)**:
-   - To make sure your cursor doesn't click 10 times by accident if your hand twitches, we use a two-door rule:
-     - You must close your fingers below **65 pixels** to start a click.
-     - You must open your fingers wider than **90 pixels** to let go.
+```math
+\text{Distance} = \sqrt{(X_2 - X_1)^2 + (Y_2 - Y_1)^2}
+```
+
+* **Left Click Rule**: When $\text{Distance} < 65\text{ pixels}$, your fingers are touching $\rightarrow$ **Left Click triggers!**
+* **Right Click Rule**: When the distance between your **Thumb** and **Pinky (Small Finger)** $< 70\text{ pixels}$ $\rightarrow$ **Right Click triggers!**
+
+---
+
+### 2. Screen Coordinate Mapping (Scaling Camera to Monitor)
+The camera picture is $1280 \times 720$ pixels, but your computer screen might be $1920 \times 1080$ pixels. The computer maps your hand position using simple proportional scaling:
+
+```math
+\text{Screen } X = \left( \frac{\text{Camera } X - \text{Margin}_X}{\text{Camera Width} - 2 \cdot \text{Margin}_X} \right) \times \text{Monitor Width}
+```
+
+```math
+\text{Screen } Y = \left( \frac{\text{Camera } Y - \text{Margin}_Y}{\text{Camera Height} - 2 \cdot \text{Margin}_Y} \right) \times \text{Monitor Height}
+```
+
+* **Intuition**: If your hand moves $50\%$ across the camera frame, the mouse cursor moves to exactly $50\%$ across your computer screen.
+
+---
+
+### 3. Smooth Tremor Filter (1 Euro Filter)
+When hovering your hand in the air, human fingers naturally shake by 1 to 2 pixels. To stop the cursor from vibrating, the computer dynamically filters the position:
+
+```math
+\text{Smooth Position}_t = \alpha \times \text{New Hand Position}_t + (1 - \alpha) \times \text{Previous Position}_{t-1}
+```
+
+Where $\alpha$ (responsiveness) adapts dynamically:
+* **When Hand is Still / Hovering**: $\alpha$ decreases $\rightarrow$ **locks cursor 100% stable on buttons**.
+* **When Hand Moves Fast**: $\alpha \to 1.0$ $\rightarrow$ **zero lag, cursor follows your hand instantly**.
+
+---
+
+### 4. Click Stability Lock (Two-Door Schmitt Trigger)
+To prevent accidental double-clicks caused by tiny finger twitches, we use a two-door threshold rule:
+
+```math
+\text{Click State} = 
+\begin{cases} 
+\mathbf{CLICKED} & \text{if } \text{Distance} \le 65\text{ px} \\ 
+\mathbf{RELEASED} & \text{if } \text{Distance} \ge 90\text{ px} \\ 
+\text{Keep Current State} & \text{if } 65\text{ px} < \text{Distance} < 90\text{ px}
+\end{cases}
+```
+
+* **Result**: Small hand twitches between $65\text{px}$ and $90\text{px}$ will never trigger accidental duplicate clicks!
 
 ---
 
