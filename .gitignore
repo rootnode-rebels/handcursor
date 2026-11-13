@@ -39,6 +39,7 @@ build/
 *.pdf
 generate_report_pdf.py
 build_complete_guide_pdf.py
+build_academic_report_30p.py
 
 # Environment & IDE
 .env
